@@ -1,0 +1,793 @@
+"""
+MID Pipeline (Nipype 0.10)- Level 1 in subject's own functional space
+- Coregister output to freesurfer anatomy
+- SPM normalization 
+
+Created:		8-27-2014	# based on Domain pipeline script (J.A.R.)
+Code Revised:		**-**-20**	
+"""
+
+import os                                    # system functions
+import nipype.algorithms.modelgen as model   # model generation
+import nipype.algorithms.rapidart as ra      # artifact detection
+import nipype.interfaces.freesurfer as fs    # freesurfer
+import nipype.interfaces.fsl as fsl          # fsl
+import nipype.interfaces.io as nio           # i/o routines
+import nipype.interfaces.matlab as mlab      # how to run matlab
+import nipype.interfaces.spm as spm          # spm
+import nipype.interfaces.utility as util     # utility
+import nipype.pipeline.engine as pe          # pypeline engine
+from nipype.utils.filemanip import loadflat	 # some useful stuff for debugging
+from nipype.interfaces.ants import WarpImageMultiTransform
+from nipype.interfaces.utility import Function
+import scipy.io as sio
+import numpy as np
+from nipype.interfaces.base import Bunch
+from copy import deepcopy
+import sys
+
+
+###### CONFIGURABLE INPUTS ######
+
+#note that this pipeline assumes that the output of recon_all is in ./Analysis/nipype/
+experiment 	='MID.01'
+runs 		=[
+			'run1',
+			'run2',
+			'run3',
+			'run4',
+			'run5',
+			'run6',
+			'run7',
+			'run8'
+			]
+
+'''
+#for MID0002 or MID0004
+runs=['run2','run3','run4','run5','run6','run7','run8']
+'''
+study_TR 	= 2.180
+test_type 	= 'T'  		# "T" / "F"
+normalize	='ANTS'		# dartel / SPM_normalize / ANTS
+datasink	='off' 		#on / off 
+T1_identifier 	='anat.nii.gz'
+ANTS_template  = '/Volumes/lashley/MID.01/Analysis/ANTS/MNI152_T1_1mm_brain.nii.gz'
+
+subjects_list = [
+				'MID0001',
+				'MID0002',
+				'MID0003',
+				'MID0004',
+				'MID0005',
+  			'MID0006',
+				'MID0008',
+				'MID0009',
+				'MID0010',
+				'MID0011',
+				'MID0012',
+				'MID0013',
+				'MID0014_A',
+				'MID0014_B',
+				'MID0015',# no run 8 (only behav missing)
+				'MID0016',
+				'MID0017',
+				'MID0020',
+				'MID0021',
+				'MID0022',
+				'MID0023',
+				'MID0024',
+				'MID0025',
+				'MID0026', 
+				'MID0027',
+				'MID0028',
+				'MID0029',
+				'MID0030',
+				'MID0031',
+				'MID0032',
+				'MID0033',
+				'MID0034',
+				'MID0035',
+				'MID0036',
+				'MID0038',
+				'MID0039',
+				'MID0040',
+				'MID0041',
+				'MID0042',
+				'MID0043',
+				'MID0045',
+				'MID0046',
+				'MID0047'				
+				]
+
+
+def get_events(subject_id):
+	
+	path2events = '/Volumes/lashley/MID.01/Data/behav/'
+	
+	#event1		=path2events+'/%s/counterbalanced/combined/antic_non_mon.run001.txt'%subject_id
+	#event2		=path2events+'/%s/counterbalanced/combined/antic_rew_mon.run001.txt'%subject_id
+	event3		=path2events+'/%s/counterbalanced/combined/cue_non_mon.run001.txt'%subject_id
+	event4		=path2events+'/%s/counterbalanced/combined/cue_rew_mon.run001.txt'%subject_id
+	event5		=path2events+'/%s/counterbalanced/combined/MISS_non_mon.run001.txt'%subject_id
+	event6		=path2events+'/%s/counterbalanced/combined/MISS_rew_mon.run001.txt'%subject_id
+	event7		=path2events+'/%s/counterbalanced/combined/offset_non_mon.run001.txt'%subject_id
+	event8		=path2events+'/%s/counterbalanced/combined/offset_rew_mon.run001.txt'%subject_id
+	event9		=path2events+'/%s/counterbalanced/combined/outcome_non_mon.run001.txt'%subject_id
+	event10		=path2events+'/%s/counterbalanced/combined/outcome_rew_mon.run001.txt'%subject_id
+	event11		=path2events+'/%s/counterbalanced/combined/WIN_non_mon.run001.txt'%subject_id
+	event12		=path2events+'/%s/counterbalanced/combined/WIN_rew_mon.run001.txt'%subject_id
+	event13		=path2events+'/%s/counterbalanced/combined/antic_REINF_non_mon.run001.txt'%subject_id
+	event14		=path2events+'/%s/counterbalanced/combined/antic_REINF_rew_mon.run001.txt'%subject_id
+	
+	#event15	=path2events+'/%s/counterbalanced/combined/antic_non_img.run002.txt'%subject_id
+	#event16	=path2events+'/%s/counterbalanced/combined/antic_rew_img.run002.txt'%subject_id
+	event17		=path2events+'/%s/counterbalanced/combined/cue_non_img.run002.txt'%subject_id
+	event18		=path2events+'/%s/counterbalanced/combined/cue_rew_img.run002.txt'%subject_id
+	event19		=path2events+'/%s/counterbalanced/combined/MISS_non_img.run002.txt'%subject_id
+	event20		=path2events+'/%s/counterbalanced/combined/MISS_rew_img.run002.txt'%subject_id
+	event21		=path2events+'/%s/counterbalanced/combined/offset_non_img.run002.txt'%subject_id
+	event22		=path2events+'/%s/counterbalanced/combined/offset_rew_img.run002.txt'%subject_id
+	event23		=path2events+'/%s/counterbalanced/combined/outcome_non_img.run002.txt'%subject_id
+	event24		=path2events+'/%s/counterbalanced/combined/outcome_rew_img.run002.txt'%subject_id
+	event25		=path2events+'/%s/counterbalanced/combined/WIN_non_img.run002.txt'%subject_id
+	event26		=path2events+'/%s/counterbalanced/combined/WIN_rew_img.run002.txt'%subject_id
+	event27		=path2events+'/%s/counterbalanced/combined/antic_REINF_non_img.run002.txt'%subject_id
+	event28		=path2events+'/%s/counterbalanced/combined/antic_REINF_rew_img.run002.txt'%subject_id
+	
+	#event29	=path2events+'/%s/counterbalanced/combined/antic_non_mon.run003.txt'%subject_id
+	#event30	=path2events+'/%s/counterbalanced/combined/antic_rew_mon.run003.txt'%subject_id
+	event31		=path2events+'/%s/counterbalanced/combined/AVOID_non_mon.run003.txt'%subject_id
+	event32		=path2events+'/%s/counterbalanced/combined/AVOID_rew_mon.run003.txt'%subject_id
+	event33		=path2events+'/%s/counterbalanced/combined/cue_non_mon.run003.txt'%subject_id
+	event34		=path2events+'/%s/counterbalanced/combined/cue_rew_mon.run003.txt'%subject_id
+	event35		=path2events+'/%s/counterbalanced/combined/LOSS_non_mon.run003.txt'%subject_id
+	event36		=path2events+'/%s/counterbalanced/combined/LOSS_rew_mon.run003.txt'%subject_id
+	event37		=path2events+'/%s/counterbalanced/combined/offset_non_mon.run003.txt'%subject_id
+	event38		=path2events+'/%s/counterbalanced/combined/offset_rew_mon.run003.txt'%subject_id
+	event39		=path2events+'/%s/counterbalanced/combined/outcome_non_mon.run003.txt'%subject_id
+	event40		=path2events+'/%s/counterbalanced/combined/outcome_rew_mon.run003.txt'%subject_id
+	event41		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_non_mon.run003.txt'%subject_id
+	event42		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_rew_mon.run003.txt'%subject_id	
+	
+	#event43	=path2events+'/%s/counterbalanced/combined/antic_non_img.run004.txt'%subject_id
+	#event44	=path2events+'/%s/counterbalanced/combined/antic_rew_img.run004.txt'%subject_id
+	event45		=path2events+'/%s/counterbalanced/combined/AVOID_non_img.run004.txt'%subject_id
+	event46		=path2events+'/%s/counterbalanced/combined/AVOID_rew_img.run004.txt'%subject_id
+	event47		=path2events+'/%s/counterbalanced/combined/cue_non_img.run004.txt'%subject_id
+	event48		=path2events+'/%s/counterbalanced/combined/cue_rew_img.run004.txt'%subject_id
+	event49		=path2events+'/%s/counterbalanced/combined/LOSS_non_img.run004.txt'%subject_id
+	event50		=path2events+'/%s/counterbalanced/combined/LOSS_rew_img.run004.txt'%subject_id
+	event51		=path2events+'/%s/counterbalanced/combined/offset_non_img.run004.txt'%subject_id
+	event52		=path2events+'/%s/counterbalanced/combined/offset_rew_img.run004.txt'%subject_id
+	event53		=path2events+'/%s/counterbalanced/combined/outcome_non_img.run004.txt'%subject_id
+	event54		=path2events+'/%s/counterbalanced/combined/outcome_rew_img.run004.txt'%subject_id
+	event55		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_rew_img.run004.txt'%subject_id
+	event56		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_non_img.run004.txt'%subject_id
+	
+	#event57	=path2events+'/%s/counterbalanced/combined/antic_non_mon.run005.txt'%subject_id
+	#event58	=path2events+'/%s/counterbalanced/combined/antic_rew_mon.run005.txt'%subject_id
+	event59		=path2events+'/%s/counterbalanced/combined/cue_non_mon.run005.txt'%subject_id
+	event60		=path2events+'/%s/counterbalanced/combined/cue_rew_mon.run005.txt'%subject_id
+	event61		=path2events+'/%s/counterbalanced/combined/MISS_non_mon.run005.txt'%subject_id
+	event62		=path2events+'/%s/counterbalanced/combined/MISS_rew_mon.run005.txt'%subject_id
+	event63		=path2events+'/%s/counterbalanced/combined/offset_non_mon.run005.txt'%subject_id
+	event64		=path2events+'/%s/counterbalanced/combined/offset_rew_mon.run005.txt'%subject_id
+	event65		=path2events+'/%s/counterbalanced/combined/outcome_non_mon.run005.txt'%subject_id
+	event66		=path2events+'/%s/counterbalanced/combined/outcome_rew_mon.run005.txt'%subject_id
+	event67		=path2events+'/%s/counterbalanced/combined/WIN_non_mon.run005.txt'%subject_id
+	event68		=path2events+'/%s/counterbalanced/combined/WIN_rew_mon.run005.txt'%subject_id
+	event69		=path2events+'/%s/counterbalanced/combined/antic_REINF_rew_mon.run005.txt'%subject_id
+	event70		=path2events+'/%s/counterbalanced/combined/antic_REINF_non_mon.run005.txt'%subject_id
+			
+	#event71	=path2events+'/%s/counterbalanced/combined/antic_non_img.run006.txt'%subject_id
+	#event72	=path2events+'/%s/counterbalanced/combined/antic_rew_img.run006.txt'%subject_id
+	event73		=path2events+'/%s/counterbalanced/combined/cue_non_img.run006.txt'%subject_id
+	event74		=path2events+'/%s/counterbalanced/combined/cue_rew_img.run006.txt'%subject_id
+	event75		=path2events+'/%s/counterbalanced/combined/MISS_non_img.run006.txt'%subject_id
+	event76		=path2events+'/%s/counterbalanced/combined/MISS_rew_img.run006.txt'%subject_id
+	event77		=path2events+'/%s/counterbalanced/combined/offset_non_img.run006.txt'%subject_id
+	event78		=path2events+'/%s/counterbalanced/combined/offset_rew_img.run006.txt'%subject_id
+	event79		=path2events+'/%s/counterbalanced/combined/outcome_non_img.run006.txt'%subject_id
+	event80		=path2events+'/%s/counterbalanced/combined/outcome_rew_img.run006.txt'%subject_id
+	event81		=path2events+'/%s/counterbalanced/combined/WIN_non_img.run006.txt'%subject_id
+	event82		=path2events+'/%s/counterbalanced/combined/WIN_rew_img.run006.txt'%subject_id
+	event83		=path2events+'/%s/counterbalanced/combined/antic_REINF_non_img.run006.txt'%subject_id
+	event84		=path2events+'/%s/counterbalanced/combined/antic_REINF_rew_img.run006.txt'%subject_id
+			
+	#event85	=path2events+'/%s/counterbalanced/combined/antic_non_mon.run007.txt'%subject_id
+	#event86	=path2events+'/%s/counterbalanced/combined/antic_rew_mon.run007.txt'%subject_id
+	event87		=path2events+'/%s/counterbalanced/combined/AVOID_non_mon.run007.txt'%subject_id
+	event88		=path2events+'/%s/counterbalanced/combined/AVOID_rew_mon.run007.txt'%subject_id
+	event89		=path2events+'/%s/counterbalanced/combined/cue_non_mon.run007.txt'%subject_id
+	event90		=path2events+'/%s/counterbalanced/combined/cue_rew_mon.run007.txt'%subject_id
+	event91		=path2events+'/%s/counterbalanced/combined/LOSS_non_mon.run007.txt'%subject_id
+	event92		=path2events+'/%s/counterbalanced/combined/LOSS_rew_mon.run007.txt'%subject_id
+	event93		=path2events+'/%s/counterbalanced/combined/offset_non_mon.run007.txt'%subject_id
+	event94		=path2events+'/%s/counterbalanced/combined/offset_rew_mon.run007.txt'%subject_id
+	event95		=path2events+'/%s/counterbalanced/combined/outcome_non_mon.run007.txt'%subject_id
+	event96		=path2events+'/%s/counterbalanced/combined/outcome_rew_mon.run007.txt'%subject_id		
+	event97		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_non_mon.run007.txt'%subject_id
+	event98		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_rew_mon.run007.txt'%subject_id	
+	
+	#event99	=path2events+'/%s/counterbalanced/combined/antic_non_img.run008.txt'%subject_id
+	#event100	=path2events+'/%s/counterbalanced/combined/antic_rew_img.run008.txt'%subject_id
+	event101	=path2events+'/%s/counterbalanced/combined/AVOID_non_img.run008.txt'%subject_id
+	event102	=path2events+'/%s/counterbalanced/combined/AVOID_rew_img.run008.txt'%subject_id
+	event103	=path2events+'/%s/counterbalanced/combined/cue_non_img.run008.txt'%subject_id
+	event104	=path2events+'/%s/counterbalanced/combined/cue_rew_img.run008.txt'%subject_id
+	#even105	=path2events+'/%s/counterbalanced/combined/LOSS_non_img.run008.txt'%subject_id
+	#even106	=path2events+'/%s/counterbalanced/combined/LOSS_rew_img.run008.txt'%subject_id
+	event107	=path2events+'/%s/counterbalanced/combined/offset_non_img.run008.txt'%subject_id
+	event108	=path2events+'/%s/counterbalanced/combined/offset_rew_img.run008.txt'%subject_id
+	event109	=path2events+'/%s/counterbalanced/combined/outcome_non_img.run008.txt'%subject_id
+	event110	=path2events+'/%s/counterbalanced/combined/outcome_rew_img.run008.txt'%subject_id
+	event111	=path2events+'/%s/counterbalanced/combined/antic_PUNISH_non_img.run008.txt'%subject_id
+	event112	=path2events+'/%s/counterbalanced/combined/antic_PUNISH_rew_img.run008.txt'%subject_id
+	
+
+
+
+
+
+
+	
+	
+		
+	events		= 	[
+			
+			[event1,event2,event3,event4,event5,event6,event7,event8,event9,event10,event11,event12,event13,event14],
+			[event15,event16,event17,event18,event19,event20,event21,event22,event23,event24,event25,event26,event27,event28],
+			[event29,event30,event31,event32,event33,event34,event35,event36,event37,event38,event39,event40,event41,event42],
+			[event43,event44,event45,event46,event47,event48,event49,event50,event51,event52,event53,event54,event55,event56],
+			[event57,event58,event59,event60,event61,event62,event63,event64,event65,event66,event67,event68,event69,event70],
+			[event71,event72,event73,event74,event75,event76,event77,event78,event79,event80,event81,event82,event83,event84],
+			[event85,event86,event85,event86,event87,event88,event89,event90,event93,event94,event95,event96,event97,event98],
+			[event99,event100,event101,event102,event103,event104,
+			
+			#event105,event106,
+			
+			event107,event108,event109,event110,event111,event112]
+			]
+
+
+			
+			
+			
+							
+	events		= 	[
+			
+			[event3,event4,event5,event6,event7,event8,event9,event10,event11,event12,event13,event14],
+			[event17,event18,event19,event20,event21,event22,event23,event24,event25,event26,event27,event28],
+			[event31,event32,event33,event34,event35,event36,event37,event38,event39,event40,event41,event42],
+			[event45,event46,event47,event48,event49,event50,event51,event52,event53,event54,event55,event56],
+			[event59,event60,event61,event62,event63,event64,event65,event66,event67,event68,event69,event70],
+			[event73,event74,event75,event76,event77,event78,event79,event80,event81,event82,event83,event84],
+			[event87,event88,event89,event90,event93,event94,event95,event96,event97,event98],
+			[event101,event102,event103,event104,
+			
+			#event105,event106,
+			
+			event107,event108,event109,event110,event111,event112]
+			
+			]
+
+	print events	
+	return events
+
+#################################
+
+
+#from nipype.utils.config import config
+#config.enable_debug_mode()
+
+# Tell freesurfer what subjects directory to use
+experiment_dir='/Volumes/lashley/%s/' %experiment
+subjects_dir = experiment_dir + 'Analysis/nipype/reconall'
+fs.FSCommand.set_default_subjects_dir(subjects_dir)
+# Set the way matlab should be called
+mlab.MatlabCommand.set_default_matlab_cmd("//Volumes/Macintosh_HD/Applications/MATLAB_R2011b.app//bin//matlab -nodesktop -nosplash")
+#If SPM is not in your MATLAB path you should add it here
+mlab.MatlabCommand.set_default_paths('/Volumes/lashley/packages/spm8/spm8/')
+# Set up how FSL should write nifti files:
+fsl.FSLCommand.set_default_output_type('NIFTI')
+
+
+#initialize the pipeline
+l1pipeline = pe.Workflow(name="l1pipeline")
+l1pipeline.config['execution'] = {'job_finished_timeout':30}
+l1pipeline.base_dir = os.path.abspath('/Volumes/lashley/%s/Analysis/nipype/'%experiment)
+
+# Map field names to individual subject runs.
+infosource = pe.Node(
+
+		interface=util.IdentityInterface(
+		
+			fields				= ['subject_id'],
+			),
+			iterables 			= [('subject_id', subjects_list)],
+			name				= "infosource")
+
+'''
+def getruns(subject_id):
+	if subject_id is 'MID0001':
+		runs=['run1','run2','run3','run4','run5','run6','run7','run8']
+	if subject_id is 'MID0002':
+		runs=['run2','run3','run4','run5','run6','run7','run8']	
+	return runs
+
+
+get_runs_interface = Function(input_names=["subject_id"],
+                             output_names=["run_list"],
+                             function=getruns)
+'''
+# DataGrabber node to get the input files for each subject
+datasource = pe.Node(
+
+		interface=nio.DataGrabber(
+		
+			infields			= ['subject_id'],
+			outfields			= ['func', 'anat']),
+			
+				base_directory		= subjects_dir,
+				name 			= 'datasource')
+
+datasource.inputs.template_args				= dict(	func	= [[ 'subject_id','run' ]],
+								anat	= [[ 'subject_id' ]],
+								)
+								
+datasource.inputs.template				= '*'
+datasource.inputs.field_template 			= dict	(func 	= experiment_dir + '/Data/func/%s/counterbalanced/%s/f.nii.gz',
+								 anat 	= experiment_dir + '/Data/anat/%s/anat.nii.gz',
+								 )
+								 
+datasource.inputs.sorted 				= False
+datasource.inputs.run					= runs
+
+#**************
+#l1pipeline.connect(get_runs_interface,'out_val',datasource,'runs' )
+
+l1pipeline.connect(infosource, 'subject_id',datasource,'subject_id' )
+#**************
+
+# Slice-Time Correction Node
+slice_timing = pe.MapNode(
+
+		interface=fsl.SliceTimer(
+		
+			interleaved			= True,
+			time_repetition 		= study_TR,
+			output_type 			= 'NIFTI',
+			
+			),
+				iterfield		= ['in_file'],
+				name			= "slice_timing")
+
+#**************
+l1pipeline.connect(datasource,'func',slice_timing,'in_file')
+#**************
+
+
+# Motion Correction Node
+realign = pe.Node(
+		
+		interface=spm.Realign(
+		
+			register_to_mean 		= True),
+		 
+		 		name			="realign")
+
+#**************
+l1pipeline.connect(slice_timing,'slice_time_corrected_file',realign,'in_files')
+#**************
+
+
+#Artifact Detection Node
+art = pe.Node(interface=ra.ArtifactDetect(
+
+			use_differences     		= [True,False],
+			use_norm           		= True,
+			norm_threshold    		= 1.0,
+			zintensity_threshold		= 3.0,
+			mask_type           		= 'file',
+			parameter_source    		= 'SPM',
+		),
+		 
+		 		name			="art")
+
+#**************
+l1pipeline.connect(realign,'realignment_parameters',art,'realignment_parameters')
+l1pipeline.connect(realign,'realigned_files',art,'realigned_files')
+#**************
+
+
+#Stimulus correlation quality control node:
+stimcor = pe.Node(interface=ra.StimulusCorrelation(), name="stimcor")
+stimcor.inputs.concatenated_design = False
+#**************
+l1pipeline.connect(art,'intensity_files',stimcor,'intensity_values')
+l1pipeline.connect(realign,'realignment_parameters',stimcor,'realignment_parameters')
+#**************
+
+
+# run SPM's smoothing
+volsmooth = pe.Node(interface=spm.Smooth(), name="volsmooth")
+volsmooth.inputs.fwhm = [8,8,8]
+#**************
+l1pipeline.connect(realign,'realigned_files',volsmooth,'in_files')
+#**************
+
+
+# Coregister node for functional images to FreeSurfer surfaces
+calcSurfReg = pe.Node(interface=fs.BBRegister(),name='calcSurfReg')
+calcSurfReg.inputs.init = 'fsl'
+calcSurfReg.inputs.contrast_type = 't2'
+calcSurfReg.inputs.registered_file = True
+#**************
+l1pipeline.connect(infosource,'subject_id',calcSurfReg,'subject_id')
+l1pipeline.connect(realign,'mean_image',calcSurfReg,'source_file')
+#**************
+
+
+# Apply surface coregistration to output t-maps
+applySurfRegT = pe.MapNode(interface=fs.ApplyVolTransform(),name='applySurfRegT', iterfield = ['source_file'])
+#**************
+l1pipeline.connect(calcSurfReg,'out_reg_file',applySurfRegT,'reg_file')
+l1pipeline.connect(calcSurfReg,'registered_file',applySurfRegT,'target_file')
+#**************
+
+
+# Apply surface coregistration to output contrast images
+applySurfRegCon = pe.MapNode(interface=fs.ApplyVolTransform(),name='applySurfRegCon', iterfield = ['source_file'])
+l1pipeline.connect(calcSurfReg,'out_reg_file',applySurfRegCon,'reg_file')
+l1pipeline.connect(calcSurfReg,'registered_file',applySurfRegCon,'target_file')		
+
+
+# Node to find Freesurfer data
+FreeSurferSource = pe.Node(interface=nio.FreeSurferSource(), name='fssource')
+FreeSurferSource.inputs.subjects_dir = os.path.abspath('/Volumes/lashley/%s/Analysis/nipype/reconall'%experiment)
+
+def get_aparc_aseg(files):
+        for name in files:
+            if 'aparc+aseg' in name:
+                return name
+        raise ValueError('aparc+aseg.mgz not found')
+
+#**************
+l1pipeline.connect(infosource,'subject_id',FreeSurferSource,'subject_id')
+#**************
+
+
+# Volume Transform (for making brain mask)
+ApplyVolTransform = pe.Node(
+			
+			interface			=fs.ApplyVolTransform(),
+			
+				 name			='applyreg')
+				 
+ApplyVolTransform.inputs.inverse = True
+#**************
+l1pipeline.connect(realign,'mean_image',ApplyVolTransform,'source_file')
+l1pipeline.connect(calcSurfReg,'out_reg_file',ApplyVolTransform,'reg_file')
+l1pipeline.connect(FreeSurferSource, ('aparc_aseg', get_aparc_aseg),  ApplyVolTransform,'target_file')
+#**************
+
+
+# Threshold (for making brain mask)
+Threshold = pe.Node(interface=fs.Binarize(dilate=1),name='threshold')
+Threshold.inputs.min = 0.5
+Threshold.inputs.out_type = 'nii'
+#**************
+l1pipeline.connect(Threshold,'binary_file',art, 'mask_file')
+l1pipeline.connect(ApplyVolTransform,'transformed_file',Threshold,'in_file')
+#**************
+
+
+# Model Specification (NiPype) Node
+modelspec = pe.Node(interface=model.SpecifyModel(), name="modelspec", overwrite=True)
+modelspec.inputs.input_units = 'secs'
+modelspec.inputs.time_repetition = study_TR
+modelspec.inputs.high_pass_filter_cutoff = 160 #160 OR np.inf #inf because of linear / quad regressors - otherwise ~160
+#**************
+l1pipeline.connect(infosource, ('subject_id', get_events),modelspec,'event_files')
+l1pipeline.connect(realign,'realignment_parameters',modelspec,'realignment_parameters')
+l1pipeline.connect(volsmooth,'smoothed_files',modelspec,'functional_runs')
+l1pipeline.connect(art,'outlier_files',modelspec,'outlier_files')
+#**************
+
+
+# Level 1 Design (SPM) Node
+level1design = pe.Node(interface=spm.Level1Design(), name= "level1design")
+level1design.inputs.timing_units = 'secs'
+level1design.inputs.interscan_interval = modelspec.inputs.time_repetition
+level1design.inputs.bases = {'hrf':{'derivs':[1,1]}}
+#level1design.inputs.bases = {'gamma':{'length':[1],'order':[1]}}
+
+level1design.inputs.model_serial_correlations = 'AR(1)' #'none'
+#**************
+l1pipeline.connect(modelspec,'session_info',level1design,'session_info')
+l1pipeline.connect(Threshold,'binary_file',level1design,'mask_image')
+l1pipeline.connect(level1design,'spm_mat_file',stimcor,'spm_mat_file')
+#**************
+
+
+# Level 1 Estimation node
+level1estimate = pe.Node(interface=spm.EstimateModel(), name="level1estimate")
+level1estimate.inputs.estimation_method = {'Classical' : 1}
+#**************
+l1pipeline.connect(level1design,'spm_mat_file',level1estimate,'spm_mat_file')
+#**************
+
+
+# Constrast Estimation node
+contrastestimate = pe.Node(
+
+		interface		 	= spm.EstimateContrast(),
+			
+				name		="contrastestimate")
+
+if test_type is "T":
+	# define the contrasts	
+	
+	#main effects
+	contrast1 = ('cue_rew_img',			'T', 			['cue_rew_img'],			[1]	)#CUE 			(F)
+	contrast2 = ('cue_non_img',			'T', 			['cue_non_img'],			[1]	)#CUE-	SAFE TRIAL 	(F)
+	contrast3 = ('cue_rew_mon',			'T', 			['cue_rew_mon'],			[1]	)#CUE			($)
+	contrast4 = ('cue_non_mon',			'T', 			['cue_non_mon'],			[1]	)#CUE-	SAFE TRIAL 	($)
+	
+	contrast5 = ('antic_REINF_rew_img',		'T', 			['antic_REINF_rew_img','antic_REINF_non_img'],		[1,0]	)#ANTIC-REINF	(F)
+	contrast6 = ('antic_REINF_non_img',		'T', 			['antic_REINF_non_img','antic_REINF_rew_img'],		[1,0]	)#ANTIC-REINF	(F)
+	contrast7 = ('antic_REINF_rew_mon',		'T', 			['antic_REINF_rew_mon','antic_REINF_non_mon'],		[1,0]	)#ANTIC-REINF	($)
+	contrast8 = ('antic_REINF_non_mon',		'T', 			['antic_REINF_non_mon','antic_REINF_rew_mon'],		[1,0]	)#ANTIC-REINF	($)
+	
+	contrast9 = ('antic_PUNISH_rew_img',		'T', 			['antic_PUNISH_rew_img','antic_PUNISH_non_img'],	[1,0]	)#ANTIC-PUNISH			(F)
+	contrast10 = ('antic_PUNISH_non_img',		'T', 			['antic_PUNISH_non_img','antic_PUNISH_rew_img'],	[1,0]	)#ANTIC-PUNISH SAFE TRIAL 	(F)
+	contrast11 = ('antic_PUNISH_rew_mon',		'T', 			['antic_PUNISH_rew_mon','antic_PUNISH_non_mon'],	[1,0]	)#ANTIC-PUNISH			($)
+	contrast12 = ('antic_PUNISH_non_mon',		'T', 			['antic_PUNISH_non_mon','antic_PUNISH_rew_mon'],	[1,0]	)#ANTIC-PUNISH SAFE TRIAL 	($)
+	
+	contrast13 = ('AVOID_rew_img',			'T', 			['AVOID_rew_img','AVOID_non_img'],			[1,-1]	)#OUTCOME-Successfully avoid punish (X on screen)	(F)
+	contrast14 = ('AVOID_non_img',			'T', 			['AVOID_non_img','AVOID_rew_img'],			[1,-1]	)#OUTCOME-Successfully avoid punish SAFE TRIAL		(F)
+	contrast15 = ('AVOID_rew_mon',			'T', 			['AVOID_rew_mon','AVOID_non_mon'],			[1,-1]	)#OUTCOME-Successfully avoid punish (X on screen) 	($)
+	contrast16 = ('AVOID_non_mon',			'T', 			['AVOID_non_mon','AVOID_rew_mon'],			[1,-1]	)#OUTCOME-Successfully avoid punish SAFE TRIAL		($)
+	
+	contrast17 = ('LOSS_rew_img',			'T', 			['LOSS_rew_img','LOSS_non_img'],			[1,0]	)#OUTCOME-Unsuccessfully avoid punish (Angry Face)	(F)
+	contrast18 = ('LOSS_non_img',			'T', 			['LOSS_non_img','LOSS_rew_img'],			[1,0]	)#OUTCOME-Unsuccessfully avoid punish SAFE TRIAL	(F)
+	contrast19 = ('LOSS_rew_mon',			'T', 			['LOSS_rew_mon','LOSS_non_mon'],			[1,0]	)#OUTCOME-Unsuccessfully avoid punish (Lose Dollar)	($)
+	contrast20 = ('LOSS_non_mon',			'T', 			['LOSS_non_mon','LOSS_rew_mon'],			[1,0]	)#OUTCOME-Unsuccessfully avoid punish SAFE TRIAL	($)
+
+	contrast21 = ('WIN_rew_img',			'T', 			['WIN_rew_img','WIN_non_img'],				[1,0]	)#OUTCOME-Successfully pursue reinforcer (happy face)	(F)
+	contrast22 = ('WIN_non_img',			'T', 			['WIN_non_img','WIN_rew_img'],				[1,0]	)#OUTCOME-Successfully pursue reinforcer SAFE TRIAL	(F)
+	contrast23 = ('WIN_rew_mon',			'T', 			['WIN_rew_mon','WIN_non_mon'],				[1,0]	)#OUTCOME-Successfully pursue reinforcer (win dollar)	($)
+	contrast24 = ('WIN_non_mon',			'T', 			['WIN_non_mon','WIN_rew_mon'],				[1,0]	)#OUTCOME-Successfully pursue reinforcer SAFE TRIAL 	($)
+	
+	contrast25 = ('MISS_rew_img',			'T', 			['MISS_rew_img','MISS_non_img'],			[1,0]	)#OUTCOME-Unsuccessfully pursue reinforcer (X on screen)	(F)
+	contrast26 = ('MISS_non_img',			'T', 			['MISS_non_img','MISS_rew_img'],			[1,0]	)#OUTCOME-Unsuccessfully pursue reinforcer (X on screen)	(F)
+	contrast27 = ('MISS_rew_mon',			'T', 			['MISS_rew_mon','MISS_non_mon'],			[1,0]	)#OUTCOME-Unsuccessfully pursue reinforcer (X on Screen)	($)
+	contrast28 = ('MISS_non_mon',			'T', 			['MISS_non_mon','MISS_rew_mon'],			[1,0]	)#OUTCOME-Unsuccessfully pursue reinforcer (X on screen)	($)
+
+	contrast29 = ('outcome_rew_img',		'T', 			['outcome_rew_img','outcome_non_img'],			[1,0]	)#OUTCOME- ANY
+	contrast30 = ('outcome_non_img',		'T', 			['outcome_non_img','outcome_rew_img'],			[1,0]	)#OUTCOME- ANY
+	contrast31 = ('outcome_rew_mon',		'T', 			['outcome_rew_mon','outcome_non_mon'],			[1,0]	)#OUTCOME- ANY
+	contrast32 = ('outcome_non_mon',		'T', 			['outcome_non_mon','outcome_rew_mon'],			[1,0]	)#OUTCOME- ANY
+	
+	contrast33 = ('antic_REINF_rew_img>antic_REINF_rew_mon',	'T', 	['antic_REINF_rew_img','antic_REINF_rew_img'],		[1,-1]	)#ANTIC - anticipate happy face > anticipate gain 1 dollar
+	contrast34 = ('antic_PUNISH_rew_img>antic_PUNISH_rew_mon',	'T',	['antic_PUNISH_rew_img','antic_PUNISH_rew_mon'],	[1,-1] 	)#ANTIC - anticipate angry face > anticipate lose 1 dollar
+	contrast35 = ('antic_REINF_rew_img>antic_PUNISH_rew_img',	'T',	['antic_REINF_rew_img','antic_PUNISH_rew_img'],		[1,-1] 	)#ANTIC - anticipate happy face > anticipate angry face **
+	contrast36 = ('antic_PUNISH_rew_mon>antic_REINF_rew_mon',	'T',	['antic_PUNISH_rew_mon','antic_REINF_rew_mon'],		[1,-1] 	)#ANTIC - anticipate lose 1 dollar > anticipate gain 1 dollar
+
+	contrast37 = ('WIN_rew_img>WIN_rew_mon',	  'T',			['WIN_rew_img','WIN_rew_mon'],				[1,-1] 	)#OUTCOME-see happy face > gain 1 dollar
+	contrast38 = ('LOSS_rew_img>LOSS_rew_mon',	'T',			['LOSS_rew_img','LOSS_rew_mon'],			[1,-1] 	)#OUTCOME-see angry face > lose 1 dollar
+	
+	contrast39 = ('antic_REINF_rew_img>antic_REINF_non_img',	'T',			['antic_REINF_rew_img','antic_REINF_non_img'],			[1,-1] 	)#ANTIC -anticipate happy face > safe trial
+	contrast40 = ('antic_REINF_rew_mon>antic_REINF_non_mon',	'T',			['antic_REINF_rew_mon','antic_REINF_non_mon'],			[1,-1] 	)#ANTIC -anticipate gain 1 dollar > safe trial
+
+	contrast41 = ('antic_PUNISH_rew_img>antic_PUNISH_non_img',	'T',			['antic_PUNISH_rew_img','antic_PUNISH_non_img'],			[1,-1] 	)#ANTIC - anticipate angry face > safe trial
+	contrast42 = ('antic_PUNISH_rew_mon>antic_PUNISH_non_mon',	'T',			['antic_PUNISH_rew_mon','antic_PUNISH_non_mon'],			[1,-1] 	)#ANTIC - anticipate lose 1 dollar > safe trial
+
+	contrast43 = ('antic_PUNISH_rew_mon>antic_PUNISH_non_mon',	'T',			['antic_REINF_rew_img','antic_REINF_non_img','antic_PUNISH_rew_mon','antic_PUNISH_non_mon', ],			[1,-1,-1,1] 	)#INTERACTION 
+
+
+
+#if test_type is "F":
+	
+	#dummy contrasts for testing simple effects 
+	#not used yet
+
+
+if test_type is "T":
+	contrasts =   	[
+	
+			#contrast1,contrast2,contrast3,contrast4,
+			contrast5,contrast6,contrast7,contrast8,
+			contrast9,contrast10,contrast11,contrast12,
+			#contrast13,contrast14,contrast15,contrast16,
+			#contrast17,contrast18,contrast19,contrast20,
+			#contrast21,contrast22,contrast23,contrast24,
+			#contrast25,contrast26,pythocontrast27,contrast28,
+			#contrast29,contrast30,contrast31,contrast32,
+			contrast33,contrast34,contrast35,contrast36,
+			#contrast37,contrast38  
+			contrast39,contrast40,contrast41,contrast42,contrast43
+			
+			]
+			
+			
+					
+if test_type is "F":
+	contrasts = 	[int1,int2]
+
+contrastestimate.inputs.contrasts 		=  contrasts
+
+#**************
+l1pipeline.connect(level1estimate,'spm_mat_file',contrastestimate,'spm_mat_file')
+l1pipeline.connect(level1estimate,'beta_images',contrastestimate,'beta_images')
+l1pipeline.connect(level1estimate,'residual_image',contrastestimate,'residual_image')
+#**************
+
+
+# Have a node that converts spm TSTAT IMG files to NIFTI files so FreeSurfer doesn't have a stupid header error.
+makeImgNiiT = pe.MapNode(interface=fs.MRIConvert(),name='makeImgNiiT', iterfield=['in_file'])
+makeImgNiiT.inputs.in_type = 'nifti1'
+makeImgNiiT.inputs.out_type = 'nii'
+
+# Have a node that converts spm CON (i.e. cope) IMG files to NIFTI files so FreeSurfer doesn't have a stupid header error.
+makeImgNiiCon = pe.MapNode(interface=fs.MRIConvert(),name='makeImgNiiCon', iterfield=['in_file'])
+makeImgNiiCon.inputs.in_type = 'nifti1'
+makeImgNiiCon.inputs.out_type = 'nii'	
+
+if normalize is 'SPM_normalize':
+
+	template='/Volumes/lashley/packages/fsl/data/standard/T1.nii'
+	
+	normalize_T = pe.MapNode(
+		
+			interface			=spm.Normalize(
+			
+				template		=template,
+					),
+					
+					iterfield	= ['source'],
+					name		='normalize_T')
+					
+	
+	normalize_cons = pe.MapNode(
+		
+			interface			=spm.Normalize(
+			
+				template		=template,
+					),
+					
+					iterfield	= ['source'],
+					name		='normalize_con')
+						
+
+
+	#**************
+	l1pipeline.connect(contrastestimate,'spmT_images',normalize_T,'source')
+	l1pipeline.connect(contrastestimate,'con_images',normalize_cons,'source')
+	l1pipeline.connect(normalize_T,'normalized_source',makeImgNiiT,'in_file')
+	l1pipeline.connect(normalize_cons,'normalized_source',makeImgNiiCon,'in_file')
+	l1pipeline.connect(makeImgNiiCon,'out_file',applySurfRegCon,'source_file')
+	l1pipeline.connect(makeImgNiiT,'out_file',applySurfRegT,'source_file')
+	#**************
+
+if normalize is 'ANTS':
+	
+	def get_transformation_series(subject_id):
+	
+		image					= '/Volumes/lashley/MID.01/Analysis/ANTS/%s_brainWarp.nii.gz' %(subject_id)
+		affline 				= '/Volumes/lashley/MID.01/Analysis/ANTS/%s_brainAffine.txt' %(subject_id)
+		warpfiles 				= [image,affline]
+		print warpfiles
+		return warpfiles
+	
+	#warp to ANTS Template
+	warp_T = pe.MapNode(
+		interface 				= WarpImageMultiTransform(
+		
+			reference_image 		= '/Volumes/lashley/%s/Analysis/ANTS/MNI152_T1_1mm_brain.nii.gz'%experiment,
+				),
+				
+				iterfield 		= ['moving_image'],
+				name			= "warp_T")
+	warp_con = pe.MapNode(
+		interface 				= WarpImageMultiTransform(
+		
+			#reference_image 		= '/Volumes/lassubhley/%s/Analysis/ANTS/MNI152_T1_1mm_brain.nii.gz'%experiment,
+				),
+				
+				iterfield 		= ['moving_image'],
+				name			= "warp_con")
+	#**************
+	#get transformation series
+	l1pipeline.connect([
+		
+		(infosource, warp_T,[(('subject_id', get_transformation_series),'transformation_series')]),
+		(infosource, warp_con,[(('subject_id', get_transformation_series),'transformation_series')]),	])
+	
+	l1pipeline.connect(contrastestimate,'spmT_images',makeImgNiiT,'in_file')
+	l1pipeline.connect(contrastestimate,'con_images',makeImgNiiCon,'in_file')
+	l1pipeline.connect(makeImgNiiT,'out_file',applySurfRegT,'source_file')		
+	l1pipeline.connect(makeImgNiiCon,'out_file',applySurfRegCon,'source_file')
+	l1pipeline.connect(applySurfRegT,'transformed_file',warp_T,'moving_image')
+	l1pipeline.connect(applySurfRegCon,'transformed_file',warp_con,'moving_image')
+	#**************
+
+	#if test_type is "T":
+		#l1pipeline.connect(contrastestimate,'spmT_images',warp_T,'moving_image')
+	#if test_type is "F":
+		#l1pipeline.connect(contrastestimate,'spmF_images',warp_T,'moving_image') # if using F images
+	#l1pipeline.connect(contrastestimate,'con_images',warp_con,'moving_image')
+	#l1pipeline.connect(warp_T,'output_image',makeImgNiiT,'in_file')
+	#l1pipeline.connect(warp_con,'output_image',makeImgNiiCon,'in_file')
+	#l1pipeline.connect(makeImgNiiCon,'out_file',applySurfRegCon,'source_file')
+	#l1pipeline.connect(makeImgNiiT,'out_file',applySurfRegT,'source_file')			
+	##**************
+
+
+# HANDY, IN CASE YOU NEED .IMG FILES. Have a node that converts .nii BACK TO spm TSTAT IMG files so that spm_crossvalidation will run later.
+makeNiiImgT = pe.MapNode(interface=fs.MRIConvert(),name='makeNiiImgT', iterfield=['in_file'])
+makeNiiImgT.inputs.in_type = 'nii'
+makeNiiImgT.inputs.out_type = 'spm'
+
+# HANDY, IN CASE YOU NEED .IMG FILES. Have a node that converts .nii BACK TO spm con IMG files so that spm_crossvalidation will run later.
+makeNiiImgCon = pe.MapNode(interface=fs.MRIConvert(),name='makeNiiImgCon', iterfield=['in_file'])
+makeNiiImgCon.inputs.in_type = 'nii'
+makeNiiImgCon.inputs.out_type = 'spm'
+
+#**************
+l1pipeline.connect(warp_T,'output_image',makeNiiImgT,'in_file' )
+l1pipeline.connect(warp_con,'output_image',makeNiiImgCon, 'in_file' )
+#**************
+
+
+# Datasink node for saving output of the pipeline
+datasink = pe.Node(
+
+		interface			=nio.DataSink(
+		
+			base_directory 		= os.path.abspath('/Volumes/lashley/%s/Analysis/nipype/l1output'%experiment),),
+		
+				name		="datasink")
+				
+				
+
+def getsubs(subject_id,contrast_list):
+	subs = [('_subject_id_%s/'%subject_id,'')]
+	for i in range(len(contrast_list),0,-1):
+		subs.append(('_applySurfRegCon%d/'%(i-1),''))
+		subs.append(('_applySurfRegT%d/'%(i-1),''))
+		subs.append(('_applySurfRegVar%d/'%(i-1),''))
+		subs.append(('con_%04d_out_maths_warped'%(i),'var_%04d_out_warped'%(i)))
+	return subs
+
+
+#connections for the datasink
+if datasink is 'on': 
+	l1pipeline.connect([
+	(infosource,datasink,[('subject_id','container'),
+						
+						(
+						
+						('subject_id',getsubs,contrastestimate.inputs.contrasts),'substitutions')]),
+						(FreeSurferSource,datasink,[('brain','subj_anat.@brain')]),
+						(realign,datasink,[('mean_image','subj_anat.@mean')]),
+						(calcSurfReg,datasink,[('out_reg_file','surfreg'),
+												('min_cost_file','qc_bbreg'),
+												('registered_file','subj_anat.@reg_mean')]),
+						(warp_T,datasink,[('output_image','reg_cons')]),
+						(warp_con,datasink,[('output_image','reg_cons')]),
+						(level1estimate,datasink,[
+													('spm_mat_file','model.@spm'),
+													('mask_image','model.@mask'),
+													('residual_image','model.@res'),
+													('RPVimage','model.@rpv')]),
+						(art,datasink,[('outlier_files','qc_art.@outliers'),
+										('plot_files','qc_art.@motionplots'),
+										('statistic_files','qc_art.@statfiles'),
+										]),
+						(stimcor,datasink,[('stimcorr_files','qc_stimcor')]),
+						])
+
+
+l1pipeline.write_graph()
+l1pipeline.run(plugin='MultiProc', plugin_args={'n_procs' : 8})#plugin='PBS',plugin_args={'qsub_args':qsubargs})
