@@ -3,7 +3,7 @@ MID Pipeline (Nipype 0.10)- Level 1 in subject's own functional space
 - Coregister output to freesurfer anatomy
 - SPM normalization 
 
-Created:		8-27-2014	# based on Domain pipeline script (J.A.R.)
+Created:		20-27-2014	# based on Domain pipeline script (J.A.R.)
 Code Revised:		**-**-20**	
 """
 
@@ -29,7 +29,6 @@ import sys
 
 ###### CONFIGURABLE INPUTS ######
 
-#note that this pipeline assumes that the output of recon_all is in ./Analysis/nipype/
 experiment 	='MID.01'
 runs 		=[
 			'run1',
@@ -40,240 +39,277 @@ runs 		=[
 			'run6',
 			'run7',
 			'run8'
+		
 			]
 
-'''
-#for MID0002 or MID0004
-runs=['run2','run3','run4','run5','run6','run7','run8']
-'''
-study_TR 	= 2.180
-test_type 	= 'T'  		# "T" / "F"
-normalize	='ANTS'		# dartel / SPM_normalize / ANTS
-datasink	='off' 		#on / off 
-T1_identifier 	='anat.nii.gz'
-ANTS_template  = '/Volumes/lashley/MID.01/Analysis/ANTS/MNI152_T1_1mm_brain.nii.gz'
 
-subjects_list = [
-				'MID0001',
-				'MID0002',
-				'MID0003',
-				'MID0004',
-				'MID0005',
-  			'MID0006',
-				'MID0008',
-				'MID0009',
-				'MID0010',
-				'MID0011',
-				'MID0012',
-				'MID0013',
-				'MID0014_A',
-				'MID0014_B',
-				'MID0015',# no run 8 (only behav missing)
-				'MID0016',
-				'MID0017',
-				'MID0020',
-				'MID0021',
-				'MID0022',
-				'MID0023',
-				'MID0024',
-				'MID0025',
-				'MID0026', 
-				'MID0027',
-				'MID0028',
-				'MID0029',
-				'MID0030',
-				'MID0031',
-				'MID0032',
-				'MID0033',
-				'MID0034',
-				'MID0035',
-				'MID0036',
-				'MID0038',
-				'MID0039',
-				'MID0040',
-				'MID0041',
-				'MID0042',
-				'MID0043',
-				'MID0045',
-				'MID0046',
-				'MID0047'				
+study_TR 		= 2.18
+test_type 		= 'F'  		# "T" / "F"
+normalize		='ANTS'		# dartel / SPM_normalize / ANTS
+
+
+datasink		='off' 		#on / off 
+T1_identifier 	='anat.nii.gz'
+ANTS_template 	= '/Volumes/lashley/MID.01/Analysis/ANTS/MNI152_T1_1mm_brain.nii.gz'
+
+subjects_list 	= [
+  				
+				'MID0001', 
+				'MID0002',  	
+				'MID0004',		
+ 	  			'MID0006',
+      	   			'MID0008',
+  	   			'MID0009',
+   	 			'MID0010',
+   				'MID0011',
+   	  	  		'MID0012',
+   	  	  		'MID0013',
+   	 	  		'MID0014_B',
+  	  			'MID0015',
+     				'MID0020',
+       				'MID0021',
+       				'MID0023',
+      				'MID0024',
+   	  			'MID0025',
+   				'MID0026',
+       				'MID0027',
+       				'MID0028',
+      				'MID0029',
+       				'MID0030',
+       				'MID0031',
+       				'MID0032',
+       				'MID0033',
+      				'MID0034',
+       				'MID0035',
+       				'MID0036',
+      				'MID0038',
+      				'MID0039',
+       				'MID0040',
+       				'MID0041',
+       				'MID0042',
+       				'MID0043',
+       				'MID0045',
+       				'MID0046',
+       				'MID0047',
+ 				'MID0048',
+				'MID0049',
+				'MID0050'	
+  						
 				]
 
 
 def get_events(subject_id):
-	
-	path2events = '/Volumes/lashley/MID.01/Data/behav/'
-	
-	#event1		=path2events+'/%s/counterbalanced/combined/antic_non_mon.run001.txt'%subject_id
-	#event2		=path2events+'/%s/counterbalanced/combined/antic_rew_mon.run001.txt'%subject_id
-	event3		=path2events+'/%s/counterbalanced/combined/cue_non_mon.run001.txt'%subject_id
-	event4		=path2events+'/%s/counterbalanced/combined/cue_rew_mon.run001.txt'%subject_id
-	event5		=path2events+'/%s/counterbalanced/combined/MISS_non_mon.run001.txt'%subject_id
-	event6		=path2events+'/%s/counterbalanced/combined/MISS_rew_mon.run001.txt'%subject_id
-	event7		=path2events+'/%s/counterbalanced/combined/offset_non_mon.run001.txt'%subject_id
-	event8		=path2events+'/%s/counterbalanced/combined/offset_rew_mon.run001.txt'%subject_id
-	event9		=path2events+'/%s/counterbalanced/combined/outcome_non_mon.run001.txt'%subject_id
-	event10		=path2events+'/%s/counterbalanced/combined/outcome_rew_mon.run001.txt'%subject_id
-	event11		=path2events+'/%s/counterbalanced/combined/WIN_non_mon.run001.txt'%subject_id
-	event12		=path2events+'/%s/counterbalanced/combined/WIN_rew_mon.run001.txt'%subject_id
-	event13		=path2events+'/%s/counterbalanced/combined/antic_REINF_non_mon.run001.txt'%subject_id
-	event14		=path2events+'/%s/counterbalanced/combined/antic_REINF_rew_mon.run001.txt'%subject_id
-	
-	#event15	=path2events+'/%s/counterbalanced/combined/antic_non_img.run002.txt'%subject_id
-	#event16	=path2events+'/%s/counterbalanced/combined/antic_rew_img.run002.txt'%subject_id
-	event17		=path2events+'/%s/counterbalanced/combined/cue_non_img.run002.txt'%subject_id
-	event18		=path2events+'/%s/counterbalanced/combined/cue_rew_img.run002.txt'%subject_id
-	event19		=path2events+'/%s/counterbalanced/combined/MISS_non_img.run002.txt'%subject_id
-	event20		=path2events+'/%s/counterbalanced/combined/MISS_rew_img.run002.txt'%subject_id
-	event21		=path2events+'/%s/counterbalanced/combined/offset_non_img.run002.txt'%subject_id
-	event22		=path2events+'/%s/counterbalanced/combined/offset_rew_img.run002.txt'%subject_id
-	event23		=path2events+'/%s/counterbalanced/combined/outcome_non_img.run002.txt'%subject_id
-	event24		=path2events+'/%s/counterbalanced/combined/outcome_rew_img.run002.txt'%subject_id
-	event25		=path2events+'/%s/counterbalanced/combined/WIN_non_img.run002.txt'%subject_id
-	event26		=path2events+'/%s/counterbalanced/combined/WIN_rew_img.run002.txt'%subject_id
-	event27		=path2events+'/%s/counterbalanced/combined/antic_REINF_non_img.run002.txt'%subject_id
-	event28		=path2events+'/%s/counterbalanced/combined/antic_REINF_rew_img.run002.txt'%subject_id
-	
-	#event29	=path2events+'/%s/counterbalanced/combined/antic_non_mon.run003.txt'%subject_id
-	#event30	=path2events+'/%s/counterbalanced/combined/antic_rew_mon.run003.txt'%subject_id
-	event31		=path2events+'/%s/counterbalanced/combined/AVOID_non_mon.run003.txt'%subject_id
-	event32		=path2events+'/%s/counterbalanced/combined/AVOID_rew_mon.run003.txt'%subject_id
-	event33		=path2events+'/%s/counterbalanced/combined/cue_non_mon.run003.txt'%subject_id
-	event34		=path2events+'/%s/counterbalanced/combined/cue_rew_mon.run003.txt'%subject_id
-	event35		=path2events+'/%s/counterbalanced/combined/LOSS_non_mon.run003.txt'%subject_id
-	event36		=path2events+'/%s/counterbalanced/combined/LOSS_rew_mon.run003.txt'%subject_id
-	event37		=path2events+'/%s/counterbalanced/combined/offset_non_mon.run003.txt'%subject_id
-	event38		=path2events+'/%s/counterbalanced/combined/offset_rew_mon.run003.txt'%subject_id
-	event39		=path2events+'/%s/counterbalanced/combined/outcome_non_mon.run003.txt'%subject_id
-	event40		=path2events+'/%s/counterbalanced/combined/outcome_rew_mon.run003.txt'%subject_id
-	event41		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_non_mon.run003.txt'%subject_id
-	event42		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_rew_mon.run003.txt'%subject_id	
-	
-	#event43	=path2events+'/%s/counterbalanced/combined/antic_non_img.run004.txt'%subject_id
-	#event44	=path2events+'/%s/counterbalanced/combined/antic_rew_img.run004.txt'%subject_id
-	event45		=path2events+'/%s/counterbalanced/combined/AVOID_non_img.run004.txt'%subject_id
-	event46		=path2events+'/%s/counterbalanced/combined/AVOID_rew_img.run004.txt'%subject_id
-	event47		=path2events+'/%s/counterbalanced/combined/cue_non_img.run004.txt'%subject_id
-	event48		=path2events+'/%s/counterbalanced/combined/cue_rew_img.run004.txt'%subject_id
-	event49		=path2events+'/%s/counterbalanced/combined/LOSS_non_img.run004.txt'%subject_id
-	event50		=path2events+'/%s/counterbalanced/combined/LOSS_rew_img.run004.txt'%subject_id
-	event51		=path2events+'/%s/counterbalanced/combined/offset_non_img.run004.txt'%subject_id
-	event52		=path2events+'/%s/counterbalanced/combined/offset_rew_img.run004.txt'%subject_id
-	event53		=path2events+'/%s/counterbalanced/combined/outcome_non_img.run004.txt'%subject_id
-	event54		=path2events+'/%s/counterbalanced/combined/outcome_rew_img.run004.txt'%subject_id
-	event55		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_rew_img.run004.txt'%subject_id
-	event56		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_non_img.run004.txt'%subject_id
-	
-	#event57	=path2events+'/%s/counterbalanced/combined/antic_non_mon.run005.txt'%subject_id
-	#event58	=path2events+'/%s/counterbalanced/combined/antic_rew_mon.run005.txt'%subject_id
-	event59		=path2events+'/%s/counterbalanced/combined/cue_non_mon.run005.txt'%subject_id
-	event60		=path2events+'/%s/counterbalanced/combined/cue_rew_mon.run005.txt'%subject_id
-	event61		=path2events+'/%s/counterbalanced/combined/MISS_non_mon.run005.txt'%subject_id
-	event62		=path2events+'/%s/counterbalanced/combined/MISS_rew_mon.run005.txt'%subject_id
-	event63		=path2events+'/%s/counterbalanced/combined/offset_non_mon.run005.txt'%subject_id
-	event64		=path2events+'/%s/counterbalanced/combined/offset_rew_mon.run005.txt'%subject_id
-	event65		=path2events+'/%s/counterbalanced/combined/outcome_non_mon.run005.txt'%subject_id
-	event66		=path2events+'/%s/counterbalanced/combined/outcome_rew_mon.run005.txt'%subject_id
-	event67		=path2events+'/%s/counterbalanced/combined/WIN_non_mon.run005.txt'%subject_id
-	event68		=path2events+'/%s/counterbalanced/combined/WIN_rew_mon.run005.txt'%subject_id
-	event69		=path2events+'/%s/counterbalanced/combined/antic_REINF_rew_mon.run005.txt'%subject_id
-	event70		=path2events+'/%s/counterbalanced/combined/antic_REINF_non_mon.run005.txt'%subject_id
-			
-	#event71	=path2events+'/%s/counterbalanced/combined/antic_non_img.run006.txt'%subject_id
-	#event72	=path2events+'/%s/counterbalanced/combined/antic_rew_img.run006.txt'%subject_id
-	event73		=path2events+'/%s/counterbalanced/combined/cue_non_img.run006.txt'%subject_id
-	event74		=path2events+'/%s/counterbalanced/combined/cue_rew_img.run006.txt'%subject_id
-	event75		=path2events+'/%s/counterbalanced/combined/MISS_non_img.run006.txt'%subject_id
-	event76		=path2events+'/%s/counterbalanced/combined/MISS_rew_img.run006.txt'%subject_id
-	event77		=path2events+'/%s/counterbalanced/combined/offset_non_img.run006.txt'%subject_id
-	event78		=path2events+'/%s/counterbalanced/combined/offset_rew_img.run006.txt'%subject_id
-	event79		=path2events+'/%s/counterbalanced/combined/outcome_non_img.run006.txt'%subject_id
-	event80		=path2events+'/%s/counterbalanced/combined/outcome_rew_img.run006.txt'%subject_id
-	event81		=path2events+'/%s/counterbalanced/combined/WIN_non_img.run006.txt'%subject_id
-	event82		=path2events+'/%s/counterbalanced/combined/WIN_rew_img.run006.txt'%subject_id
-	event83		=path2events+'/%s/counterbalanced/combined/antic_REINF_non_img.run006.txt'%subject_id
-	event84		=path2events+'/%s/counterbalanced/combined/antic_REINF_rew_img.run006.txt'%subject_id
-			
-	#event85	=path2events+'/%s/counterbalanced/combined/antic_non_mon.run007.txt'%subject_id
-	#event86	=path2events+'/%s/counterbalanced/combined/antic_rew_mon.run007.txt'%subject_id
-	event87		=path2events+'/%s/counterbalanced/combined/AVOID_non_mon.run007.txt'%subject_id
-	event88		=path2events+'/%s/counterbalanced/combined/AVOID_rew_mon.run007.txt'%subject_id
-	event89		=path2events+'/%s/counterbalanced/combined/cue_non_mon.run007.txt'%subject_id
-	event90		=path2events+'/%s/counterbalanced/combined/cue_rew_mon.run007.txt'%subject_id
-	event91		=path2events+'/%s/counterbalanced/combined/LOSS_non_mon.run007.txt'%subject_id
-	event92		=path2events+'/%s/counterbalanced/combined/LOSS_rew_mon.run007.txt'%subject_id
-	event93		=path2events+'/%s/counterbalanced/combined/offset_non_mon.run007.txt'%subject_id
-	event94		=path2events+'/%s/counterbalanced/combined/offset_rew_mon.run007.txt'%subject_id
-	event95		=path2events+'/%s/counterbalanced/combined/outcome_non_mon.run007.txt'%subject_id
-	event96		=path2events+'/%s/counterbalanced/combined/outcome_rew_mon.run007.txt'%subject_id		
-	event97		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_non_mon.run007.txt'%subject_id
-	event98		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_rew_mon.run007.txt'%subject_id	
-	
-	#event99	=path2events+'/%s/counterbalanced/combined/antic_non_img.run008.txt'%subject_id
-	#event100	=path2events+'/%s/counterbalanced/combined/antic_rew_img.run008.txt'%subject_id
-	event101	=path2events+'/%s/counterbalanced/combined/AVOID_non_img.run008.txt'%subject_id
-	event102	=path2events+'/%s/counterbalanced/combined/AVOID_rew_img.run008.txt'%subject_id
-	event103	=path2events+'/%s/counterbalanced/combined/cue_non_img.run008.txt'%subject_id
-	event104	=path2events+'/%s/counterbalanced/combined/cue_rew_img.run008.txt'%subject_id
-	#even105	=path2events+'/%s/counterbalanced/combined/LOSS_non_img.run008.txt'%subject_id
-	#even106	=path2events+'/%s/counterbalanced/combined/LOSS_rew_img.run008.txt'%subject_id
-	event107	=path2events+'/%s/counterbalanced/combined/offset_non_img.run008.txt'%subject_id
-	event108	=path2events+'/%s/counterbalanced/combined/offset_rew_img.run008.txt'%subject_id
-	event109	=path2events+'/%s/counterbalanced/combined/outcome_non_img.run008.txt'%subject_id
-	event110	=path2events+'/%s/counterbalanced/combined/outcome_rew_img.run008.txt'%subject_id
-	event111	=path2events+'/%s/counterbalanced/combined/antic_PUNISH_non_img.run008.txt'%subject_id
-	event112	=path2events+'/%s/counterbalanced/combined/antic_PUNISH_rew_img.run008.txt'%subject_id
-	
 
 
-
-
-
-
+		path2events = '/Volumes/lashley/MID.01/Data/behav/'
 	
-	
+		event1		=path2events+'/%s/counterbalanced/combined/antic_non_mon.run001.txt'%subject_id
+		event2		=path2events+'/%s/counterbalanced/combined/antic_rew_mon.run001.txt'%subject_id
+		event3		=path2events+'/%s/counterbalanced/combined/cue_non_mon.run001.txt'%subject_id
+		event4		=path2events+'/%s/counterbalanced/combined/cue_rew_mon.run001.txt'%subject_id
+		event5		=path2events+'/%s/counterbalanced/combined/MISS_non_mon.run001.txt'%subject_id
+		event6		=path2events+'/%s/counterbalanced/combined/MISS_rew_mon.run001.txt'%subject_id
+		event7		=path2events+'/%s/counterbalanced/combined/offset_non_mon.run001.txt'%subject_id
+		event8		=path2events+'/%s/counterbalanced/combined/offset_rew_mon.run001.txt'%subject_id
+		event9		=path2events+'/%s/counterbalanced/combined/outcome_non_mon.run001.txt'%subject_id
+		event10		=path2events+'/%s/counterbalanced/combined/outcome_rew_mon.run001.txt'%subject_id
+		event11		=path2events+'/%s/counterbalanced/combined/WIN_non_mon.run001.txt'%subject_id
+		event12		=path2events+'/%s/counterbalanced/combined/WIN_rew_mon.run001.txt'%subject_id
+		event13		=path2events+'/%s/counterbalanced/combined/antic_REINF_non_mon.run001.txt'%subject_id
+		event14		=path2events+'/%s/counterbalanced/combined/antic_REINF_rew_mon.run001.txt'%subject_id
+		event14a	=path2events+'/%s/counterbalanced/combined/hit_rew_gain_mon.run001.txt'%subject_id
+		event14b	=path2events+'/%s/counterbalanced/combined/miss_rew_gain_mon.run001.txt'%subject_id
+		event14c	=path2events+'/%s/counterbalanced/combined/hit_non_gain_mon.run001.txt'%subject_id
+		event14d	=path2events+'/%s/counterbalanced/combined/miss_non_gain_mon.run001.txt'%subject_id
 		
-	events		= 	[
+		event15		=path2events+'/%s/counterbalanced/combined/antic_non_img.run002.txt'%subject_id
+		event16		=path2events+'/%s/counterbalanced/combined/antic_rew_img.run002.txt'%subject_id
+		event17		=path2events+'/%s/counterbalanced/combined/cue_non_img.run002.txt'%subject_id
+		event18		=path2events+'/%s/counterbalanced/combined/cue_rew_img.run002.txt'%subject_id
+		event19		=path2events+'/%s/counterbalanced/combined/MISS_non_img.run002.txt'%subject_id
+		event20		=path2events+'/%s/counterbalanced/combined/MISS_rew_img.run002.txt'%subject_id
+		event21		=path2events+'/%s/counterbalanced/combined/offset_non_img.run002.txt'%subject_id
+		event22		=path2events+'/%s/counterbalanced/combined/offset_rew_img.run002.txt'%subject_id
+		event23		=path2events+'/%s/counterbalanced/combined/outcome_non_img.run002.txt'%subject_id
+		event24		=path2events+'/%s/counterbalanced/combined/outcome_rew_img.run002.txt'%subject_id
+		#event25	=path2events+'/%s/counterbalanced/combined/WIN_non_img.run002.txt'%subject_id
+		#event26	=path2events+'/%s/counterbalanced/combined/WIN_rew_img.run002.txt'%subject_id
+		event27		=path2events+'/%s/counterbalanced/combined/antic_REINF_non_img.run002.txt'%subject_id
+		event28		=path2events+'/%s/counterbalanced/combined/antic_REINF_rew_img.run002.txt'%subject_id
+		event28a	=path2events+'/%s/counterbalanced/combined/view_happy_img.run002.txt'%subject_id
+		event28b	=path2events+'/%s/counterbalanced/combined/miss_happy_img.run002.txt'%subject_id
+		event28c	=path2events+'/%s/counterbalanced/combined/hit_non_happyrun_img.run002.txt'%subject_id
+		event28d	=path2events+'/%s/counterbalanced/combined/miss_non_happyrun_img.run002.txt'%subject_id
+		
+		event29	=path2events+'/%s/counterbalanced/combined/antic_non_mon.run003.txt'%subject_id
+		event30	=path2events+'/%s/counterbalanced/combined/antic_rew_mon.run003.txt'%subject_id
+		event31	=path2events+'/%s/counterbalanced/combined/AVOID_non_mon.run003.txt'%subject_id
+		event32	=path2events+'/%s/counterbalanced/combined/AVOID_rew_mon.run003.txt'%subject_id
+		event33		=path2events+'/%s/counterbalanced/combined/cue_non_mon.run003.txt'%subject_id
+		event34		=path2events+'/%s/counterbalanced/combined/cue_rew_mon.run003.txt'%subject_id
+		event35	=path2events+'/%s/counterbalanced/combined/LOSS_non_mon.run003.txt'%subject_id
+		#event36	=path2events+'/%s/counterbalanced/combined/LOSS_rew_mon.run003.txt'%subject_id
+		event37		=path2events+'/%s/counterbalanced/combined/offset_non_mon.run003.txt'%subject_id
+		event38		=path2events+'/%s/counterbalanced/combined/offset_rew_mon.run003.txt'%subject_id
+		event39		=path2events+'/%s/counterbalanced/combined/outcome_non_mon.run003.txt'%subject_id
+		event40		=path2events+'/%s/counterbalanced/combined/outcome_rew_mon.run003.txt'%subject_id
+		event41		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_non_mon.run003.txt'%subject_id
+		event42		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_rew_mon.run003.txt'%subject_id	
+		event42a	=path2events+'/%s/counterbalanced/combined/hit_rew_loss_mon.run003.txt'%subject_id	
+		event42b	=path2events+'/%s/counterbalanced/combined/miss_rew_loss_mon.run003.txt'%subject_id	
+		event42c	=path2events+'/%s/counterbalanced/combined/hit_non_loss_mon.run003.txt'%subject_id	
+		event42d	=path2events+'/%s/counterbalanced/combined/miss_non_loss_mon.run003.txt'%subject_id	
+	
+		event43	=path2events+'/%s/counterbalanced/combined/antic_non_img.run004.txt'%subject_id
+		event44	=path2events+'/%s/counterbalanced/combined/antic_rew_img.run004.txt'%subject_id
+		event45	=path2events+'/%s/counterbalanced/combined/AVOID_non_img.run004.txt'%subject_id
+		event46	=path2events+'/%s/counterbalanced/combined/AVOID_rew_img.run004.txt'%subject_id
+		event47		=path2events+'/%s/counterbalanced/combined/cue_non_img.run004.txt'%subject_id
+		event48		=path2events+'/%s/counterbalanced/combined/cue_rew_img.run004.txt'%subject_id
+		event49	=path2events+'/%s/counterbalanced/combined/LOSS_non_img.run004.txt'%subject_id
+		event50	=path2events+'/%s/counterbalanced/combined/LOSS_rew_img.run004.txt'%subject_id
+		event51		=path2events+'/%s/counterbalanced/combined/offset_non_img.run004.txt'%subject_id
+		event52		=path2events+'/%s/counterbalanced/combined/offset_rew_img.run004.txt'%subject_id
+		event53		=path2events+'/%s/counterbalanced/combined/outcome_non_img.run004.txt'%subject_id
+		event54		=path2events+'/%s/counterbalanced/combined/outcome_rew_img.run004.txt'%subject_id
+		event55		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_rew_img.run004.txt'%subject_id
+		event56		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_non_img.run004.txt'%subject_id
+		event56a	=path2events+'/%s/counterbalanced/combined/view_angry_img.run004.txt'%subject_id
+		event56b	=path2events+'/%s/counterbalanced/combined/avoid_angry_img.run004.txt'%subject_id
+		event56c	=path2events+'/%s/counterbalanced/combined/hit_non_angryrun_img.run004.txt'%subject_id
+		event56d 	=path2events+'/%s/counterbalanced/combined/miss_non_angryrun_img.run004.txt'%subject_id
+		
+		event57	=path2events+'/%s/counterbalanced/combined/antic_non_mon.run005.txt'%subject_id
+		event58	=path2events+'/%s/counterbalanced/combined/antic_rew_mon.run005.txt'%subject_id
+		event59		=path2events+'/%s/counterbalanced/combined/cue_non_mon.run005.txt'%subject_id
+		event60		=path2events+'/%s/counterbalanced/combined/cue_rew_mon.run005.txt'%subject_id
+		event61	=path2events+'/%s/counterbalanced/combined/MISS_non_mon.run005.txt'%subject_id
+		event62	=path2events+'/%s/counterbalanced/combined/MISS_rew_mon.run005.txt'%subject_id
+		event63		=path2events+'/%s/counterbalanced/combined/offset_non_mon.run005.txt'%subject_id
+		event64		=path2events+'/%s/counterbalanced/combined/offset_rew_mon.run005.txt'%subject_id
+		event65		=path2events+'/%s/counterbalanced/combined/outcome_non_mon.run005.txt'%subject_id
+		event66		=path2events+'/%s/counterbalanced/combined/outcome_rew_mon.run005.txt'%subject_id
+		event67	=path2events+'/%s/counterbalanced/combined/WIN_non_mon.run005.txt'%subject_id
+		event68	=path2events+'/%s/counterbalanced/combined/WIN_rew_mon.run005.txt'%subject_id
+		event69		=path2events+'/%s/counterbalanced/combined/antic_REINF_rew_mon.run005.txt'%subject_id
+		event70		=path2events+'/%s/counterbalanced/combined/antic_REINF_non_mon.run005.txt'%subject_id
+		event70a	=path2events+'/%s/counterbalanced/combined/hit_rew_gain_mon.run005.txt'%subject_id
+		event70b	=path2events+'/%s/counterbalanced/combined/miss_rew_gain_mon.run005.txt'%subject_id
+		event70c	=path2events+'/%s/counterbalanced/combined/hit_non_gain_mon.run005.txt'%subject_id
+		event70d	=path2events+'/%s/counterbalanced/combined/miss_non_gain_mon.run005.txt'%subject_id
+					
+		event71	=path2events+'/%s/counterbalanced/combined/antic_non_img.run006.txt'%subject_id
+		event72	=path2events+'/%s/counterbalanced/combined/antic_rew_img.run006.txt'%subject_id
+		event73		=path2events+'/%s/counterbalanced/combined/cue_non_img.run006.txt'%subject_id
+		event74		=path2events+'/%s/counterbalanced/combined/cue_rew_img.run006.txt'%subject_id
+		event75	=path2events+'/%s/counterbalanced/combined/MISS_non_img.run006.txt'%subject_id
+		event76	=path2events+'/%s/counterbalanced/combined/MISS_rew_img.run006.txt'%subject_id
+		event77		=path2events+'/%s/counterbalanced/combined/offset_non_img.run006.txt'%subject_id
+		event78		=path2events+'/%s/counterbalanced/combined/offset_rew_img.run006.txt'%subject_id
+		event79		=path2events+'/%s/counterbalanced/combined/outcome_non_img.run006.txt'%subject_id
+		event80		=path2events+'/%s/counterbalanced/combined/outcome_rew_img.run006.txt'%subject_id
+		event81		=path2events+'/%s/counterbalanced/combined/WIN_non_img.run006.txt'%subject_id
+		event82		=path2events+'/%s/counterbalanced/combined/WIN_rew_img.run006.txt'%subject_id
+		event83		=path2events+'/%s/counterbalanced/combined/antic_REINF_non_img.run006.txt'%subject_id
+		event84		=path2events+'/%s/counterbalanced/combined/antic_REINF_rew_img.run006.txt'%subject_id
+		event84a	=path2events+'/%s/counterbalanced/combined/view_happy_img.run006.txt'%subject_id
+		event84b	=path2events+'/%s/counterbalanced/combined/miss_happy_img.run006.txt'%subject_id
+		event84c	=path2events+'/%s/counterbalanced/combined/hit_non_happyrun_img.run006.txt'%subject_id
+		event84d	=path2events+'/%s/counterbalanced/combined/miss_non_happyrun_img.run006.txt'%subject_id
 			
-			[event1,event2,event3,event4,event5,event6,event7,event8,event9,event10,event11,event12,event13,event14],
-			[event15,event16,event17,event18,event19,event20,event21,event22,event23,event24,event25,event26,event27,event28],
-			[event29,event30,event31,event32,event33,event34,event35,event36,event37,event38,event39,event40,event41,event42],
-			[event43,event44,event45,event46,event47,event48,event49,event50,event51,event52,event53,event54,event55,event56],
-			[event57,event58,event59,event60,event61,event62,event63,event64,event65,event66,event67,event68,event69,event70],
-			[event71,event72,event73,event74,event75,event76,event77,event78,event79,event80,event81,event82,event83,event84],
-			[event85,event86,event85,event86,event87,event88,event89,event90,event93,event94,event95,event96,event97,event98],
-			[event99,event100,event101,event102,event103,event104,
+		event85	=path2events+'/%s/counterbalanced/combined/antic_non_mon.run007.txt'%subject_id
+		event86	=path2events+'/%s/counterbalanced/combined/antic_rew_mon.run007.txt'%subject_id
+		event87	=path2events+'/%s/counterbalanced/combined/AVOID_non_mon.run007.txt'%subject_id
+		event88	=path2events+'/%s/counterbalanced/combined/AVOID_rew_mon.run007.txt'%subject_id
+		event89		=path2events+'/%s/counterbalanced/combined/cue_non_mon.run007.txt'%subject_id
+		event90		=path2events+'/%s/counterbalanced/combined/cue_rew_mon.run007.txt'%subject_id
+		event91	=path2events+'/%s/counterbalanced/combined/LOSS_non_mon.run007.txt'%subject_id
+		event92	=path2events+'/%s/counterbalanced/combined/LOSS_rew_mon.run007.txt'%subject_id
+		event93		=path2events+'/%s/counterbalanced/combined/offset_non_mon.run007.txt'%subject_id
+		event94		=path2events+'/%s/counterbalanced/combined/offset_rew_mon.run007.txt'%subject_id
+		event95		=path2events+'/%s/counterbalanced/combined/outcome_non_mon.run007.txt'%subject_id
+		event96		=path2events+'/%s/counterbalanced/combined/outcome_rew_mon.run007.txt'%subject_id		
+		event97		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_non_mon.run007.txt'%subject_id
+		event98		=path2events+'/%s/counterbalanced/combined/antic_PUNISH_rew_mon.run007.txt'%subject_id	
+		event98a	=path2events+'/%s/counterbalanced/combined/hit_rew_loss_mon.run007.txt'%subject_id
+		event98b	=path2events+'/%s/counterbalanced/combined/miss_rew_loss_mon.run007.txt'%subject_id
+		event98c	=path2events+'/%s/counterbalanced/combined/hit_non_loss_mon.run007.txt'%subject_id
+		event98d	=path2events+'/%s/counterbalanced/combined/miss_non_loss_mon.run007.txt'%subject_id
+	
+		event99	=path2events+'/%s/counterbalanced/combined/antic_non_img.run008.txt'%subject_id
+		event100	=path2events+'/%s/counterbalanced/combined/antic_rew_img.run008.txt'%subject_id
+		event101	=path2events+'/%s/counterbalanced/combined/AVOID_non_img.run008.txt'%subject_id
+		event102	=path2events+'/%s/counterbalanced/combined/AVOID_rew_img.run008.txt'%subject_id
+		event103	=path2events+'/%s/counterbalanced/combined/cue_non_img.run008.txt'%subject_id
+		event104	=path2events+'/%s/counterbalanced/combined/cue_rew_img.run008.txt'%subject_id
+		event105	=path2events+'/%s/counterbalanced/combined/LOSS_non_img.run008.txt'%subject_id
+		event106	=path2events+'/%s/counterbalanced/combined/LOSS_rew_img.run008.txt'%subject_id
+		event107	=path2events+'/%s/counterbalanced/combined/offset_non_img.run008.txt'%subject_id
+		event108	=path2events+'/%s/counterbalanced/combined/offset_rew_img.run008.txt'%subject_id
+		event109	=path2events+'/%s/counterbalanced/combined/outcome_non_img.run008.txt'%subject_id
+		event110	=path2events+'/%s/counterbalanced/combined/outcome_rew_img.run008.txt'%subject_id
+		event111	=path2events+'/%s/counterbalanced/combined/antic_PUNISH_non_img.run008.txt'%subject_id
+		event112	=path2events+'/%s/counterbalanced/combined/antic_PUNISH_rew_img.run008.txt'%subject_id
+		event112a	=path2events+'/%s/counterbalanced/combined/view_angry_img.run008.txt'%subject_id
+		event112b	=path2events+'/%s/counterbalanced/combined/avoid_angry_img.run008.txt'%subject_id
+		event112c	=path2events+'/%s/counterbalanced/combined/hit_non_angryrun_img.run008.txt'%subject_id
+		event112d	=path2events+'/%s/counterbalanced/combined/miss_non_angryrun_img.run008.txt'%subject_id
+		
+		events		= 	[
 			
-			#event105,event106,
-			
-			event107,event108,event109,event110,event111,event112]
-			]
+				[
+				#event3,event4,
+				#event5,event6,
+				event7,event8,event9,event10,
+				#event11,event12,
+				event13,event14,event14a,event14b,event14c,event14d], #run1
+				
+				[event17,event18,
+				#event19,event20,
+				event21,event22,event23,event24,
+				#event25,event26,
+				event27,event28,event28a,event28b,event28c,event28d],#run2
+				
+				[
+				#event31,event32,
+				event33,event34,
+				#event35,event36,
+				event37,event38,event39,event40,event41,event42,event42a,event42b,event42c,event42d],#run3
+				
+				[
+				#event45,event46,
+				event47,event48,
+				#event49,event50,
+				event51,event52,event53,event54,event55,event56,event56a,event56b,event56c,event56d],#run4
+				
+				[event59,event60,
+				#event61,event62,
+				event63,event64,event65,event66,
+				#event67,event68,
+				event69,event70,event70a,event70b,event70c,event70d],#run5
+				
+				[event73,event74,
+				#event75,event76,
+				event77,event78,event79,event80,
+				#event81,event82,
+				event83,event84,event84a,event84b,event84c,event84d],#run6
 
-
+				[
+				#event87,event88,
+				event89,event90,
+				#event91,event92
+				event93,event94,event95,event96,event97,event98,event98a,event98b,event98c,event98d],#run7
+				
+				[
+				#event101,event102,
+				event103,event104,
+				#event105,event106,
+				event107,event108,event109,event110,event111,event112,event112a,event112b,event112c,event112d],			#run8
+				]
 			
-			
-			
-							
-	events		= 	[
-			
-			[event3,event4,event5,event6,event7,event8,event9,event10,event11,event12,event13,event14],
-			[event17,event18,event19,event20,event21,event22,event23,event24,event25,event26,event27,event28],
-			[event31,event32,event33,event34,event35,event36,event37,event38,event39,event40,event41,event42],
-			[event45,event46,event47,event48,event49,event50,event51,event52,event53,event54,event55,event56],
-			[event59,event60,event61,event62,event63,event64,event65,event66,event67,event68,event69,event70],
-			[event73,event74,event75,event76,event77,event78,event79,event80,event81,event82,event83,event84],
-			[event87,event88,event89,event90,event93,event94,event95,event96,event97,event98],
-			[event101,event102,event103,event104,
-			
-			#event105,event106,
-			
-			event107,event108,event109,event110,event111,event112]
-			
-			]
-
-	print events	
+	print events,subject_id,'====================='	
 	return events
-
+	
 #################################
 
 
@@ -293,7 +329,9 @@ fsl.FSLCommand.set_default_output_type('NIFTI')
 
 
 #initialize the pipeline
+
 l1pipeline = pe.Workflow(name="l1pipeline")
+
 l1pipeline.config['execution'] = {'job_finished_timeout':30}
 l1pipeline.base_dir = os.path.abspath('/Volumes/lashley/%s/Analysis/nipype/'%experiment)
 
@@ -307,19 +345,8 @@ infosource = pe.Node(
 			iterables 			= [('subject_id', subjects_list)],
 			name				= "infosource")
 
-'''
-def getruns(subject_id):
-	if subject_id is 'MID0001':
-		runs=['run1','run2','run3','run4','run5','run6','run7','run8']
-	if subject_id is 'MID0002':
-		runs=['run2','run3','run4','run5','run6','run7','run8']	
-	return runs
 
 
-get_runs_interface = Function(input_names=["subject_id"],
-                             output_names=["run_list"],
-                             function=getruns)
-'''
 # DataGrabber node to get the input files for each subject
 datasource = pe.Node(
 
@@ -336,16 +363,17 @@ datasource.inputs.template_args				= dict(	func	= [[ 'subject_id','run' ]],
 								)
 								
 datasource.inputs.template				= '*'
-datasource.inputs.field_template 			= dict	(func 	= experiment_dir + '/Data/func/%s/counterbalanced/%s/f.nii.gz',
+
+datasource.inputs.field_template 			= dict	(func 	= experiment_dir + '/Data/func/%s/counterbalanced/%s/f_trimmed.nii.gz',
 								 anat 	= experiment_dir + '/Data/anat/%s/anat.nii.gz',
 								 )
-								 
+
+								 )								 
 datasource.inputs.sorted 				= False
 datasource.inputs.run					= runs
 
 #**************
 #l1pipeline.connect(get_runs_interface,'out_val',datasource,'runs' )
-
 l1pipeline.connect(infosource, 'subject_id',datasource,'subject_id' )
 #**************
 
@@ -411,7 +439,7 @@ l1pipeline.connect(realign,'realignment_parameters',stimcor,'realignment_paramet
 
 # run SPM's smoothing
 volsmooth = pe.Node(interface=spm.Smooth(), name="volsmooth")
-volsmooth.inputs.fwhm = [8,8,8]
+volsmooth.inputs.fwhm = [4,4,4]
 #**************
 l1pipeline.connect(realign,'realigned_files',volsmooth,'in_files')
 #**************
@@ -500,8 +528,6 @@ level1design = pe.Node(interface=spm.Level1Design(), name= "level1design")
 level1design.inputs.timing_units = 'secs'
 level1design.inputs.interscan_interval = modelspec.inputs.time_repetition
 level1design.inputs.bases = {'hrf':{'derivs':[1,1]}}
-#level1design.inputs.bases = {'gamma':{'length':[1],'order':[1]}}
-
 level1design.inputs.model_serial_correlations = 'AR(1)' #'none'
 #**************
 l1pipeline.connect(modelspec,'session_info',level1design,'session_info')
@@ -549,10 +575,10 @@ if test_type is "T":
 	contrast15 = ('AVOID_rew_mon',			'T', 			['AVOID_rew_mon','AVOID_non_mon'],			[1,-1]	)#OUTCOME-Successfully avoid punish (X on screen) 	($)
 	contrast16 = ('AVOID_non_mon',			'T', 			['AVOID_non_mon','AVOID_rew_mon'],			[1,-1]	)#OUTCOME-Successfully avoid punish SAFE TRIAL		($)
 	
-	contrast17 = ('LOSS_rew_img',			'T', 			['LOSS_rew_img','LOSS_non_img'],			[1,0]	)#OUTCOME-Unsuccessfully avoid punish (Angry Face)	(F)
-	contrast18 = ('LOSS_non_img',			'T', 			['LOSS_non_img','LOSS_rew_img'],			[1,0]	)#OUTCOME-Unsuccessfully avoid punish SAFE TRIAL	(F)
-	contrast19 = ('LOSS_rew_mon',			'T', 			['LOSS_rew_mon','LOSS_non_mon'],			[1,0]	)#OUTCOME-Unsuccessfully avoid punish (Lose Dollar)	($)
-	contrast20 = ('LOSS_non_mon',			'T', 			['LOSS_non_mon','LOSS_rew_mon'],			[1,0]	)#OUTCOME-Unsuccessfully avoid punish SAFE TRIAL	($)
+	#contrast17 = ('LOSS_rew_img',			'T', 			['LOSS_rew_img','LOSS_non_img'],			[1,0]	)#OUTCOME-Unsuccessfully avoid punish (Angry Face)	(F)
+	#contrast18 = ('LOSS_non_img',			'T', 			['LOSS_non_img','LOSS_rew_img'],			[1,0]	)#OUTCOME-Unsuccessfully avoid punish SAFE TRIAL	(F)
+	#contrast19 = ('LOSS_rew_mon',			'T', 			['LOSS_rew_mon','LOSS_non_mon'],			[1,0]	)#OUTCOME-Unsuccessfully avoid punish (Lose Dollar)	($)
+	#contrast20 = ('LOSS_non_mon',			'T', 			['LOSS_non_mon','LOSS_rew_mon'],			[1,0]	)#OUTCOME-Unsuccessfully avoid punish SAFE TRIAL	($)
 
 	contrast21 = ('WIN_rew_img',			'T', 			['WIN_rew_img','WIN_non_img'],				[1,0]	)#OUTCOME-Successfully pursue reinforcer (happy face)	(F)
 	contrast22 = ('WIN_non_img',			'T', 			['WIN_non_img','WIN_rew_img'],				[1,0]	)#OUTCOME-Successfully pursue reinforcer SAFE TRIAL	(F)
@@ -574,8 +600,8 @@ if test_type is "T":
 	contrast35 = ('antic_REINF_rew_img>antic_PUNISH_rew_img',	'T',	['antic_REINF_rew_img','antic_PUNISH_rew_img'],		[1,-1] 	)#ANTIC - anticipate happy face > anticipate angry face **
 	contrast36 = ('antic_PUNISH_rew_mon>antic_REINF_rew_mon',	'T',	['antic_PUNISH_rew_mon','antic_REINF_rew_mon'],		[1,-1] 	)#ANTIC - anticipate lose 1 dollar > anticipate gain 1 dollar
 
-	contrast37 = ('WIN_rew_img>WIN_rew_mon',	  'T',			['WIN_rew_img','WIN_rew_mon'],				[1,-1] 	)#OUTCOME-see happy face > gain 1 dollar
-	contrast38 = ('LOSS_rew_img>LOSS_rew_mon',	'T',			['LOSS_rew_img','LOSS_rew_mon'],			[1,-1] 	)#OUTCOME-see angry face > lose 1 dollar
+#	contrast37 = ('WIN_rew_img>WIN_rew_mon',	'T',			['WIN_rew_img','WIN_rew_mon'],				[1,-1] 	)#OUTCOME-see happy face > gain 1 dollar
+#	contrast38 = ('LOSS_rew_img>LOSS_rew_mon',	'T',			['LOSS_rew_img','LOSS_rew_mon'],			[1,-1] 	)#OUTCOME-see angry face > lose 1 dollar
 	
 	contrast39 = ('antic_REINF_rew_img>antic_REINF_non_img',	'T',			['antic_REINF_rew_img','antic_REINF_non_img'],			[1,-1] 	)#ANTIC -anticipate happy face > safe trial
 	contrast40 = ('antic_REINF_rew_mon>antic_REINF_non_mon',	'T',			['antic_REINF_rew_mon','antic_REINF_non_mon'],			[1,-1] 	)#ANTIC -anticipate gain 1 dollar > safe trial
@@ -584,36 +610,115 @@ if test_type is "T":
 	contrast42 = ('antic_PUNISH_rew_mon>antic_PUNISH_non_mon',	'T',			['antic_PUNISH_rew_mon','antic_PUNISH_non_mon'],			[1,-1] 	)#ANTIC - anticipate lose 1 dollar > safe trial
 
 	contrast43 = ('antic_PUNISH_rew_mon>antic_PUNISH_non_mon',	'T',			['antic_REINF_rew_img','antic_REINF_non_img','antic_PUNISH_rew_mon','antic_PUNISH_non_mon', ],			[1,-1,-1,1] 	)#INTERACTION 
+#	contrast44 = ('antic_PUNISH_rew_mon>antic_PUNISH_non_mon',	'T',			['WIN_rew_img','WIN_rew_mon','LOSS_rew_img','LOSS_rew_mon', ],			[1,-1,-1,1] 	)#INTERACTION 
 
+	#contrast45 = ('outcome_REINF_rew>outcome_REINF_non',	'T',				['WIN_rew_img','WIN_rew_mon','WIN_non_img','WIN_non_mon', ],			[1,-1,-1,1] 	)#INTERACTION 
+	#contrast46 = ('outcome_PUNISH_rew>outcome_PUNISH_non',	'T',				['LOSS_rew_img','LOSS_rew_mon','LOSS_non_img','LOSS_non_mon', ],		[1,-1,-1,1] 	)#INTERACTION 
 
-
-#if test_type is "F":
-	
-	#dummy contrasts for testing simple effects 
-	#not used yet
 
 
 if test_type is "T":
 	contrasts =   	[
 	
-			#contrast1,contrast2,contrast3,contrast4,
-			contrast5,contrast6,contrast7,contrast8,
-			contrast9,contrast10,contrast11,contrast12,
-			#contrast13,contrast14,contrast15,contrast16,
-			#contrast17,contrast18,contrast19,contrast20,
-			#contrast21,contrast22,contrast23,contrast24,
-			#contrast25,contrast26,pythocontrast27,contrast28,
-			#contrast29,contrast30,contrast31,contrast32,
+			contrast1,contrast2,contrast3,contrast4,
+        		contrast5,contrast6,contrast7,contrast8, contrast9,contrast10,contrast11,contrast12,#simple effects 
+			contrast13,contrast14,contrast15,contrast16,
+			contrast17,contrast18,contrast19,contrast20,
+			contrast21,contrast22,contrast23,contrast24,
+			contrast25,contrast26,pythocontrast27,contrast28,
+			contrast29,contrast30,contrast31,contrast32,
 			contrast33,contrast34,contrast35,contrast36,
-			#contrast37,contrast38  
-			contrast39,contrast40,contrast41,contrast42,contrast43
-			
+			contrast37,contrast38,contrast39,contrast40,contrast41,contrast42,contrast43,
+			contrast44,contrast45,contrast46
+		
 			]
 			
 			
 					
 if test_type is "F":
-	contrasts = 	[int1,int2]
+
+	contrast1 = ('antic_REINF_rew_img',			'T', 	['antic_REINF_rew_img'],	[1]	)
+	contrast2 = ('antic_REINF_non_img',			'T', 	['antic_REINF_non_img'],	[1]	)
+	contrast3 = ('antic_REINF_rew_mon',			'T', 	['antic_REINF_rew_mon'],	[1]	)
+	contrast4 = ('antic_REINF_non_mon',			'T', 	['antic_REINF_non_mon'],	[1]	)
+
+	contrast5 = ('antic_PUNISH_rew_img',		'T', 	['antic_PUNISH_rew_img'],	[1]	)
+	contrast6 = ('antic_PUNISH_non_img',		'T', 	['antic_PUNISH_non_img'],	[1]	)
+	contrast7 = ('antic_PUNISH_rew_mon',		'T', 	['antic_PUNISH_rew_mon'],	[1]	)
+	contrast8 = ('antic_PUNISH_non_mon',		'T', 	['antic_PUNISH_non_mon'],	[1]	)	
+
+	main_effect_IMG_MON=('me_IMG_MON',		'T', 	['antic_REINF_rew_img','antic_REINF_non_img','antic_REINF_rew_mon','antic_REINF_non_mon','antic_PUNISH_rew_img','antic_PUNISH_non_img','antic_PUNISH_rew_mon','antic_PUNISH_non_mon'],		[1,1,-1,-1,1,1,-1,-1]	)
+	main_effect_GAIN_LOSS=('me_GAIN_LOSS',		'T',	['antic_REINF_rew_img','antic_REINF_non_img','antic_REINF_rew_mon','antic_REINF_non_mon','antic_PUNISH_rew_img','antic_PUNISH_non_img','antic_PUNISH_rew_mon','antic_PUNISH_non_mon'],		[1,1,1,1,-1,-1,-1,-1]	)
+	main_effect_REW_NON=('me_REW_NON',		'T',	['antic_REINF_rew_img','antic_REINF_non_img','antic_REINF_rew_mon','antic_REINF_non_mon','antic_PUNISH_rew_img','antic_PUNISH_non_img','antic_PUNISH_rew_mon','antic_PUNISH_non_mon'],		[1,-1,1,-1,1,-1,1,-1]	)
+	
+	main_effect_IMG_MON_rew_only=('me_IMG_MON',	'T', 	['antic_REINF_rew_img','antic_REINF_non_img','antic_REINF_rew_mon','antic_REINF_non_mon','antic_PUNISH_rew_img','antic_PUNISH_non_img','antic_PUNISH_rew_mon','antic_PUNISH_non_mon'],		[1,0,-1,0,1,0,-1,0]	)
+	main_effect_GAIN_LOSS_rew_only=('me_GAIN_LOSS',	'T',	['antic_REINF_rew_img','antic_REINF_non_img','antic_REINF_rew_mon','antic_REINF_non_mon','antic_PUNISH_rew_img','antic_PUNISH_non_img','antic_PUNISH_rew_mon','antic_PUNISH_non_mon'],		[1,0,1,0,-1,0,-1,0]	)
+		
+	#antic interactions
+	int1 = ('positive_effect_antic_of_NON',		'T', 	['antic_REINF_rew_img','antic_REINF_non_img','antic_REINF_rew_mon','antic_REINF_non_mon','antic_PUNISH_rew_img','antic_PUNISH_non_img','antic_PUNISH_rew_mon','antic_PUNISH_non_mon'],		[1,1,1,1,1,-1,1,-1]	)
+	int2 = ('positive_effect_antic_of_MON',		'T', 	['antic_REINF_rew_img','antic_REINF_non_img','antic_REINF_rew_mon','antic_REINF_non_mon','antic_PUNISH_rew_img','antic_PUNISH_non_img','antic_PUNISH_rew_mon','antic_PUNISH_non_mon'],		[1,1,1,-1,1,1,1,-1])
+	int3 = ('positive_effect_antic_of_PUNISH',	'T', 	['antic_REINF_rew_img','antic_REINF_non_img','antic_REINF_rew_mon','antic_REINF_non_mon','antic_PUNISH_rew_img','antic_PUNISH_non_img','antic_PUNISH_rew_mon','antic_PUNISH_non_mon'],		[1,1,1,1,1,-1,1,-1]	)
+	
+	#antic f tests
+	ftest1		=('interaction_REW_IMG_REIN',		'F',	[int1,int2,int3])
+	
+	#outcome f tests
+	#ftest3		=('interaction_REW_IMG_WIN',		'F',	[int4,int5,int6])
+	#ftest4		=('simple_interaction_REW_IMG_WIN','F', 	[contrast11,contrast12,contrast13])
+	
+	#amygdala
+	contrast23	=('outcome_amyg1',					'T',	['view_angry_img'], [1]) #view angry face vs baseline
+	contrast24	=('outcome_amyg2',					'T',	['view_angry_img','avoid_angry_img'], [1,-1]) #view angry face vs view check mark
+	contrast25	=('outcome_amyg3',					'T',	['view_angry_img','view_happy_img'], [1,-1]) #view angry face vs view happy face
+	contrast26	=('outcome_amyg4',					'T',	['view_angry_img','avoid_angry_img','view_happy_img','miss_happy_img'], [1,1,-1,1]) #effect of valence by hit/miss
+	contrast27	=('outcome_amyg5',					'T',	['view_happy_img','miss_happy_img'], [1,-1])
+	contrast28	=('positive_effect_of_emotion',		'T',	['view_angry_img','avoid_angry_img','view_happy_img','miss_happy_img'], [1,1,-1,-1]) 
+	contrast29 	=('positive_effect_of_feedback',	'T',	['view_angry_img','avoid_angry_img','view_happy_img','miss_happy_img'], [1,-1,1,-1]) 
+	contrast30 	=('positive_int_emotion+feedback',	'T',	['view_angry_img','avoid_angry_img','view_happy_img','miss_happy_img'], [1,-1,-1,1]) 
+	
+	#simple effects - OUTCOME
+	contrast31	=('view_angry_img',					'T',	['view_angry_img'], [1]) 
+	contrast32	=('avoid_angry_img',				'T',	['avoid_angry_img'], [1]) 
+	contrast33	=('view_happy_img',					'T',	['view_happy_img'], [1]) 
+	contrast34	=('miss_happy_img',					'T',	['miss_happy_img'], [1])
+	contrast35	=('hit_non_happyrun_img',			'T',	['hit_non_happyrun_img'], [1])
+	contrast36	=('miss_non_happyrun_img',			'T',	['miss_non_happyrun_img'], [1])
+	contrast37	=('hit_non_angryrun_img',			'T',	['hit_non_angryrun_img'], [1])
+	contrast38	=('miss_non_angryrun_img',			'T',	['miss_non_angryrun_img'], [1])
+	contrast39	=('hit_rew_gain_mon',				'T',	['hit_rew_gain_mon'], [1])
+	contrast40	=('miss_rew_gain_mon',				'T',	['miss_rew_gain_mon'], [1])
+	contrast41	=('hit_non_gain_mon',				'T',	['hit_non_gain_mon'], [1])
+	contrast42	=('miss_non_gain_mon',				'T',	['miss_non_gain_mon'], [1])
+	contrast43	=('hit_rew_loss_mon',				'T',	['hit_rew_loss_mon'], [1])
+	contrast44	=('miss_rew_loss_mon',				'T',	['miss_rew_loss_mon'], [1])
+	contrast45	=('hit_non_loss_mon',				'T',	['hit_non_loss_mon'], [1])
+	contrast46	=('miss_non_loss_mon',				'T',	['miss_non_loss_mon'], [1])
+
+
+	#outcome interactions
+	int6 = ('positive_effect_outcome_of_rew_v_non',			'T', 	['view_angry_img','avoid_angry_img','view_happy_img','miss_happy_img','hit_non_happyrun_img','miss_non_happyrun_img','hit_non_angryrun_img','miss_non_angryrun_img','hit_rew_gain_mon','miss_rew_gain_mon','hit_non_gain_mon','miss_non_gain_mon','hit_rew_loss_mon','miss_rew_loss_mon','hit_non_loss_mon','miss_non_loss_mon'], [1,1,1,1,-1,-1,-1,-1,1,1,1,1,-1,-1,-1,-1]	)
+	int7 = ('positive_effect_outcome_of_gain_vs_loss',		'T', 	['view_angry_img','avoid_angry_img','view_happy_img','miss_happy_img','hit_non_happyrun_img','miss_non_happyrun_img','hit_non_angryrun_img','miss_non_angryrun_img','hit_rew_gain_mon','miss_rew_gain_mon','hit_non_gain_mon','miss_non_gain_mon','hit_rew_loss_mon','miss_rew_loss_mon','hit_non_loss_mon','miss_non_loss_mon'], [-1,-1,1,1,1,1,-1,-1,1,1,1,1,-1,-1,-1,-1]	)
+	int8 = ('positive_effect_outcome_of_img_v_mon',			'T', 	['view_angry_img','avoid_angry_img','view_happy_img','miss_happy_img','hit_non_happyrun_img','miss_non_happyrun_img','hit_non_angryrun_img','miss_non_angryrun_img','hit_rew_gain_mon','miss_rew_gain_mon','hit_non_gain_mon','miss_non_gain_mon','hit_rew_loss_mon','miss_rew_loss_mon','hit_non_loss_mon','miss_non_loss_mon'], [1,1,1,1,1,1,1,1,-1,-1,-1,-1,-1,-1,-1,-1]	)
+
+	#outcome f test
+	ftest7		=('interaction_outcome_REW_IMG_WIN',		'F',	[int6,int7,int8])
+	#ftest8		=('interaction_outcome_amyg',				'F',	[contrast24,contrast27])
+
+	contrasts = 	[
+	
+					contrast1,contrast2,contrast3,contrast4,contrast5,contrast6,contrast7,contrast8, #####antic simple effects for ROI analysis#####
+					contrast9,contrast10,contrast11,contrast12,contrast13,contrast14,
+					contrast15,contrast16,contrast17,contrast18,
+					contrast19,contrast20,contrast21,contrast22,
+					int1,int2,int3,
+					int4,int5,int6,
+					ftest1,ftest2,ftest3,ftest4,
+					contrast23,contrast24,contrast25,contrast26,contrast27,contrast28,contrast29,contrast30,
+					contrast31,contrast32,contrast33,contrast34,contrast35,contrast36,contrast37,contrast38,contrast39,contrast40,contrast41,contrast42,contrast43,contrast44,contrast45,contrast46,int6,int7,int8,ftest7,
+					main_effect_IMG_MON,main_effect_GAIN_LOSS,main_effect_REW_NON,	
+					main_effect_IMG_MON_rew_only,main_effect_GAIN_LOSS_rew_only,
+	
+					]
 
 contrastestimate.inputs.contrasts 		=  contrasts
 
@@ -624,12 +729,12 @@ l1pipeline.connect(level1estimate,'residual_image',contrastestimate,'residual_im
 #**************
 
 
-# Have a node that converts spm TSTAT IMG files to NIFTI files so FreeSurfer doesn't have a stupid header error.
+# Have a node that converts spm TSTAT IMG files to NIFTI files 
 makeImgNiiT = pe.MapNode(interface=fs.MRIConvert(),name='makeImgNiiT', iterfield=['in_file'])
 makeImgNiiT.inputs.in_type = 'nifti1'
 makeImgNiiT.inputs.out_type = 'nii'
 
-# Have a node that converts spm CON (i.e. cope) IMG files to NIFTI files so FreeSurfer doesn't have a stupid header error.
+# Have a node that converts spm CON (i.e. cope) IMG files to NIFTI files
 makeImgNiiCon = pe.MapNode(interface=fs.MRIConvert(),name='makeImgNiiCon', iterfield=['in_file'])
 makeImgNiiCon.inputs.in_type = 'nifti1'
 makeImgNiiCon.inputs.out_type = 'nii'	
@@ -692,7 +797,7 @@ if normalize is 'ANTS':
 	warp_con = pe.MapNode(
 		interface 				= WarpImageMultiTransform(
 		
-			#reference_image 		= '/Volumes/lassubhley/%s/Analysis/ANTS/MNI152_T1_1mm_brain.nii.gz'%experiment,
+			#reference_image 		= '/Volumes/lashley/%s/Analysis/ANTS/MNI152_T1_1mm_brain.nii.gz'%experiment,
 				),
 				
 				iterfield 		= ['moving_image'],
@@ -729,14 +834,13 @@ makeNiiImgT = pe.MapNode(interface=fs.MRIConvert(),name='makeNiiImgT', iterfield
 makeNiiImgT.inputs.in_type = 'nii'
 makeNiiImgT.inputs.out_type = 'spm'
 
-# HANDY, IN CASE YOU NEED .IMG FILES. Have a node that converts .nii BACK TO spm con IMG files so that spm_crossvalidation will run later.
 makeNiiImgCon = pe.MapNode(interface=fs.MRIConvert(),name='makeNiiImgCon', iterfield=['in_file'])
 makeNiiImgCon.inputs.in_type = 'nii'
 makeNiiImgCon.inputs.out_type = 'spm'
 
 #**************
-l1pipeline.connect(warp_T,'output_image',makeNiiImgT,'in_file' )
-l1pipeline.connect(warp_con,'output_image',makeNiiImgCon, 'in_file' )
+#l1pipeline.connect(warp_T,'output_image',makeNiiImgT,'in_file' )
+#l1pipeline.connect(warp_con,'output_image',makeNiiImgCon, 'in_file' )
 #**************
 
 
@@ -790,4 +894,4 @@ if datasink is 'on':
 
 
 l1pipeline.write_graph()
-l1pipeline.run(plugin='MultiProc', plugin_args={'n_procs' : 8})#plugin='PBS',plugin_args={'qsub_args':qsubargs})
+l1pipeline.run(plugin='MultiProc', plugin_args={'n_procs' :8})
