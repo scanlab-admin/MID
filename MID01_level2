@@ -1,5 +1,5 @@
 """
-MID 2nd level independent samples (Nipype 0.7)
+MID 2nd level independent samples (Nipype 0.10.0)
 - Level 1 in subjects own functional space
 - Coregister output to freesurfer anatomy
 - ANTS normalization done offline (ANTS_batch.sh, WIMT_batch.sh)
@@ -33,67 +33,56 @@ experiment 	='MID.01'
 
 subjects_list=[]
 
-cons=[		'MID0009',
-		'MID0010',
-		'MID0012',
-		'MID0014_B',
-		'MID0020',
-		'MID0021',
-		'MID0022',
-		'MID0024',
-		'MID0025',
-		'MID0026', 
-		'MID0027',
-		'MID0028',
-		'MID0029',
-		'MID0035',
-		'MID0036',
-		'MID0038',
-		'MID0039',
-		'MID0040',
-		'MID0043']
+cons=[			'MID0009',#C01
+			'MID0010',#C02
+			'MID0012',#C03
+			'MID0014_B',#C04
+			'MID0020',#C05
+			'MID0021',#C06
+			'MID0022',#C07 
+			'MID0025',#C08
+			'MID0026',#C09
+			'MID0027',#C10
+			'MID0028',#C11
+			'MID0029',#C12
+			'MID0035',#C13
+			'MID0036',#C14
+			'MID0037',#C15 
+			'MID0038',#C16
+			'MID0039',#C17
+			'MID0040',#C18
+			'MID0043',#C19
+			'MID0048',#C20
+			'MID0049',#C21
+			
+			]
 
-patients=[	'MID0001',
-		'MID0002',
-		'MID0003',
-		'MID0004',
-		'MID0005',
-		'MID0006',
-		'MID0008',
-		'MID0011',
-		'MID0013',
-		'MID0023',
-		'MID0030',
-		'MID0031',
-		'MID0032',
-		'MID0033',
-		'MID0034',
-		'MID0041',
-		'MID0042',
-		'MID0045',
-		'MID0046',
-		'MID0047'
+patients=[		'MID0001',#P01
+			'MID0002',#P02 
+			#'MID0003',#P03 #donotuse - button box did not work
+			'MID0004',#P04
+			'MID0006',#P05 
+			'MID0008',#P06
+			'MID0011',#P07
+			'MID0013',#P08
+			'MID0015',#P09
+			'MID0023',#P10
+			'MID0030',#P11 
+			'MID0031',#P12
+			'MID0032',#P13
+			'MID0033',#P14
+			'MID0034',#P15
+			'MID0041',#P16
+			'MID0042',#P17
+			'MID0045',#P18
+			'MID0046',#P19
+			'MID0047',#P20
+			'MID0024',#P21
+			'MID0050',#P22
 		
 		]
 
 
-'''
-def create_covariates(lsas, group, gender):
-	import numpy as np
-	group1idx = [i for i,g in enumerate(group) if g == 1]
-	group2idx = [i for i,g in enumerate(group) if g == 2]
-	groupidx = group1idx + group2idx
-	ordered_lsas = np.array(lsas)[groupidx]
-	demeaned_lsas = ((np.array(ordered_lsas)-np.array(ordered_lsas).mean())).tolist()
-	ordered_gender = np.array(gender)[groupidx].tolist()
-	covariates = [
-			dict(vector=demeaned_lsas, name='lsas'),
-                	dict(vector=ordered_gender, name='gender')
-                ]
-        return covariates
-
-workflow.connect(outputnode, ('icv', create_covariates, group, gender), modelflow, 'design.covariates')
-'''
 
 #################################
 
